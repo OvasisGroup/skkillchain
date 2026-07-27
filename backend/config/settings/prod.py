@@ -5,6 +5,7 @@ DEBUG = False
 # No default: fail loudly at boot if production isn't configured with a real secret.
 SECRET_KEY = env("SECRET_KEY")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
+FIELD_ENCRYPTION_KEY = env("FIELD_ENCRYPTION_KEY")
 
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True

@@ -160,3 +160,11 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+
+# FIELD_ENCRYPTION_KEY is deliberately NOT set here, same reasoning as
+# SECRET_KEY at the top of this file — see dev.py / stage.py / prod.py.
+
+# OAuth2 social login client IDs (used as the expected `aud` claim when
+# verifying provider tokens — see apps/identity/oauth/).
+GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
+APPLE_OAUTH_CLIENT_ID = env("APPLE_OAUTH_CLIENT_ID", default="")

@@ -29,6 +29,45 @@ class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
 
+class TokenPairSerializer(serializers.Serializer):
+    """Response shape only — mirrors SimpleJWT's own token pair output so
+    OAuth login and password login return identically-shaped tokens."""
+
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
+class OAuthTokenSerializer(serializers.Serializer):
+    token = serializers.CharField(
+        help_text="ID token (Google/Apple) or access token (Facebook) from the provider's own SDK."
+    )
+
+
+class MFAEnrollResponseSerializer(serializers.Serializer):
+    provisioning_uri = serializers.CharField()
+    secret = serializers.CharField(
+        help_text="For manual entry if the client can't render a QR code."
+    )
+
+
+class MFAVerifySerializer(serializers.Serializer):
+    code = serializers.CharField(min_length=6, max_length=6)
+
+
+class MFAStatusResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+
+
+class MFALoginChallengeSerializer(serializers.Serializer):
+    mfa_required = serializers.BooleanField(default=True)
+    mfa_token = serializers.CharField()
+
+
+class MFALoginVerifySerializer(serializers.Serializer):
+    mfa_token = serializers.CharField()
+    code = serializers.CharField(min_length=6, max_length=6)
+
+
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile

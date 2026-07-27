@@ -76,6 +76,39 @@ sequenceDiagram
 - Decision actions create immutable audit log records.
 - Operational reports for finance, support, and trust & safety.
 
+## 8. OAuth Social Login Flow
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant C as Client (Web/Mobile)
+  participant P as Provider (Google/Apple/Facebook)
+  participant API as Auth API
+
+  C->>P: Provider's own OAuth SDK flow
+  P-->>C: ID token (Google/Apple) or access token (Facebook)
+  C->>API: POST /auth/oauth/{provider}/token { token }
+  API->>P: Verify token (JWKS signature check, or Graph API call)
+  P-->>API: Verified claims: provider_user_id, email, email_verified
+  alt Existing OAuthIdentity
+    API->>API: Look up linked user
+  else No identity yet, email matches an existing account
+    alt Provider verified the email
+      API->>API: Link new OAuthIdentity to existing user
+    else Email not verified by provider
+      API-->>C: 401 — log in with password instead
+    end
+  else No identity, no matching account
+    API->>API: Create new user (unusable password) + OAuthIdentity
+  end
+  API-->>C: Access + refresh JWT (same shape as password login)
+```
+
+The client drives the OAuth exchange with the provider's own SDK (Google Sign-In, Sign in with Apple, Facebook Login) rather than the backend running a server-side redirect flow — this platform serves both a Next.js web client and a native Flutter client, and token verification is the one pattern that's uniform across both instead of needing a redirect flow for web and a native-SDK flow for mobile.
+
+- An unverified email is never used to silently link to an existing account — that would let an attacker who controls a weaker provider hijack a real user's account by claiming their email address.
+- Apple only returns an email on the user's *first* authorization for a given app; a returning user is recognized by their already-linked `OAuthIdentity`, not by email.
+
 ## 9. Live Session Scheduling and Join Flow
 
 ### Scheduling

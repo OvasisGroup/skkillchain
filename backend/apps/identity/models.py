@@ -77,3 +77,52 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}".strip() or str(self.user_id)
+
+
+class OAuthIdentity(TimeStampedModel):
+    PROVIDER_GOOGLE = "google"
+    PROVIDER_APPLE = "apple"
+    PROVIDER_FACEBOOK = "facebook"
+    PROVIDER_CHOICES = [
+        (PROVIDER_GOOGLE, "Google"),
+        (PROVIDER_APPLE, "Apple"),
+        (PROVIDER_FACEBOOK, "Facebook"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="oauth_identities")
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
+    provider_user_id = models.CharField(max_length=255)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "oauth_identities"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "provider_user_id"], name="uniq_oauth_provider_identity"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.provider}:{self.provider_user_id} -> {self.user}"
+
+
+class MFAFactor(TimeStampedModel):
+    FACTOR_TOTP = "totp"
+    FACTOR_CHOICES = [(FACTOR_TOTP, "TOTP")]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="mfa_factors")
+    factor_type = models.CharField(max_length=20, choices=FACTOR_CHOICES, default=FACTOR_TOTP)
+    # Encrypted via shared.crypto — see apps/identity/totp.py for where this
+    # is read/written. Never logged, never serialized back to the client.
+    secret_encrypted = models.TextField()
+    is_primary = models.BooleanField(default=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "mfa_factors"
+
+    def __str__(self):
+        status = "confirmed" if self.confirmed_at else "pending"
+        return f"{self.factor_type} ({status}) for {self.user}"

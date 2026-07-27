@@ -51,11 +51,19 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: Authenticated
+          description: Authenticated — no MFA factor confirmed on this account
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+        '202':
+          description: Password correct, MFA required — complete with POST /auth/mfa/login-verify
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MFALoginChallenge'
+        '401': { description: Invalid credentials }
+        '429': { description: Rate limited (10/min per IP) }
   /auth/token/refresh:
     post:
       tags: [Auth]
@@ -71,42 +79,80 @@ paths:
   /auth/mfa/enroll:
     post:
       tags: [Auth]
-      summary: Enroll a new MFA factor (TOTP/WebAuthn)
+      summary: Start TOTP enrollment for the current user
       responses:
-        '200': { description: Enrollment challenge issued }
+        '201':
+          description: Pending factor created — client renders provisioning_uri as a QR code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MFAEnrollResponse'
   /auth/mfa/verify:
     post:
       tags: [Auth]
-      summary: Verify an MFA challenge
+      summary: Confirm a pending TOTP enrollment with a code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFACodeRequest'
       responses:
-        '200': { description: MFA verified }
-  /auth/oauth/{provider}/redirect:
-    get:
+        '200': { description: Factor confirmed }
+        '401': { description: Incorrect code }
+        '404': { description: No pending enrollment — call /auth/mfa/enroll first }
+  /auth/mfa/login-verify:
+    post:
       tags: [Auth]
-      summary: Start OAuth redirect (Google/Apple/Facebook)
-      parameters:
-        - in: path
-          name: provider
-          required: true
-          schema: { type: string, enum: [google, apple, facebook] }
-      responses:
-        '302': { description: Redirect to provider }
-  /auth/oauth/{provider}/callback:
-    get:
-      tags: [Auth]
-      summary: OAuth provider callback
-      parameters:
-        - in: path
-          name: provider
-          required: true
-          schema: { type: string, enum: [google, apple, facebook] }
+      summary: Complete a login that returned mfa_required — exchanges mfa_token + code for real tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFALoginVerifyRequest'
       responses:
         '200':
-          description: Authenticated via OAuth
+          description: MFA verified — login complete
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+        '401': { description: Incorrect code, or mfa_token expired/invalid }
+  /auth/oauth/{provider}/token:
+    post:
+      tags: [Auth]
+      summary: >-
+        Exchange a provider-issued token for platform JWTs. The client performs the OAuth
+        flow with the provider's own SDK (Google Sign-In, Sign in with Apple, Facebook Login)
+        and sends the resulting token here for verification — see
+        docs/04-platform-structure/02-core-flows.md §8 for why this platform uses a
+        token-exchange pattern rather than a server-driven redirect flow.
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema: { type: string, enum: [google, apple, facebook] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  description: ID token (Google/Apple) or access token (Facebook)
+      responses:
+        '200':
+          description: Verified — logged in (existing identity/account) or registered (new account)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401': { description: Token failed provider verification, or would link an unverified email to an existing account }
+        '404': { description: Unknown provider }
   /auth/me:
     get:
       tags: [Auth]
@@ -1306,10 +1352,37 @@ components:
         password: { type: string }
     TokenResponse:
       type: object
+      description: Matches SimpleJWT's own field names — access/refresh, not access_token/refresh_token.
       properties:
-        access_token: { type: string }
-        refresh_token: { type: string }
-        expires_in: { type: integer }
+        access: { type: string }
+        refresh: { type: string }
+    MFALoginChallenge:
+      type: object
+      properties:
+        mfa_required: { type: boolean, example: true }
+        mfa_token:
+          type: string
+          description: Short-lived (5 min) signed token — pass to /auth/mfa/login-verify along with the TOTP code.
+    MFAEnrollResponse:
+      type: object
+      properties:
+        provisioning_uri:
+          type: string
+          description: otpauth:// URI — render as a QR code for the authenticator app.
+        secret:
+          type: string
+          description: Same secret embedded in provisioning_uri, for manual entry.
+    MFACodeRequest:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, minLength: 6, maxLength: 6 }
+    MFALoginVerifyRequest:
+      type: object
+      required: [mfa_token, code]
+      properties:
+        mfa_token: { type: string }
+        code: { type: string, minLength: 6, maxLength: 6 }
     Course:
       type: object
       properties:

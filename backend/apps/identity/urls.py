@@ -8,4 +8,8 @@ urlpatterns = [
     path("token/refresh/", views.TokenRefreshView.as_view(), name="auth-token-refresh"),
     path("logout/", views.LogoutView.as_view(), name="auth-logout"),
     path("me/", views.MeView.as_view(), name="auth-me"),
+    path("oauth/<str:provider>/token/", views.OAuthLoginView.as_view(), name="auth-oauth-token"),
+    path("mfa/enroll/", views.MFAEnrollView.as_view(), name="auth-mfa-enroll"),
+    path("mfa/verify/", views.MFAVerifyView.as_view(), name="auth-mfa-verify"),
+    path("mfa/login-verify/", views.MFALoginVerifyView.as_view(), name="auth-mfa-login-verify"),
 ]

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
-from .models import Profile, User
+from .models import MFAFactor, OAuthIdentity, Profile, User
 
 
 class ProfileInline(admin.StackedInline):
@@ -35,3 +35,22 @@ class UserAdmin(DjangoUserAdmin):
         ("Important dates", {"fields": ("last_login", "created_at", "updated_at")}),
     )
     add_fieldsets = ((None, {"classes": ("wide",), "fields": ("email", "password1", "password2")}),)
+
+
+@admin.register(OAuthIdentity)
+class OAuthIdentityAdmin(admin.ModelAdmin):
+    list_display = ["user", "provider", "provider_user_id", "created_at"]
+    list_filter = ["provider"]
+    search_fields = ["user__email", "provider_user_id"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+
+
+@admin.register(MFAFactor)
+class MFAFactorAdmin(admin.ModelAdmin):
+    list_display = ["user", "factor_type", "is_primary", "confirmed_at", "created_at"]
+    list_filter = ["factor_type"]
+    search_fields = ["user__email"]
+    # secret_encrypted is deliberately never shown, even encrypted — no
+    # reason for it to appear anywhere in the admin UI.
+    readonly_fields = ["id", "created_at", "updated_at", "confirmed_at"]
+    exclude = ["secret_encrypted"]

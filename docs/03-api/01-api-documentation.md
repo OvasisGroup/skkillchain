@@ -14,8 +14,8 @@
 - `POST /auth/logout`
 - `POST /auth/mfa/enroll`
 - `POST /auth/mfa/verify`
-- `GET /auth/oauth/{provider}/redirect`
-- `GET /auth/oauth/{provider}/callback`
+- `POST /auth/mfa/login-verify` — completes a login that returned `mfa_required: true`
+- `POST /auth/oauth/{provider}/token` — client performs the OAuth flow with the provider's own SDK (Google Sign-In, Sign in with Apple, Facebook Login) and exchanges the resulting token here, rather than a server-driven redirect; see [Core Flows §8](../04-platform-structure/02-core-flows.md#8-oauth-social-login-flow) for why, given this platform serves both a web and a native mobile client
 - `GET /auth/me`
 - `PATCH /auth/me`
 
