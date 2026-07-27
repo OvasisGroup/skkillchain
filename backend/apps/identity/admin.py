@@ -1,7 +1,12 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
-from .models import User
+from .models import Profile, User
+
+
+class ProfileInline(admin.StackedInline):
+    model = Profile
+    can_delete = False
 
 
 @admin.register(User)
@@ -10,6 +15,17 @@ class UserAdmin(DjangoUserAdmin):
     list_display = ["email", "is_staff", "is_active", "created_at"]
     search_fields = ["email"]
     readonly_fields = ["created_at", "updated_at", "last_login"]
+    inlines = [ProfileInline]
+
+    def get_inline_instances(self, request, obj=None):
+        # The identity.signals post_save hook creates the Profile row once the
+        # user exists; showing the inline on the "add user" form (before that
+        # row exists) makes Django's inline formset try to INSERT a second
+        # Profile with the same PK and crash. Only show it once obj is real.
+        if obj is None:
+            return []
+        return super().get_inline_instances(request, obj)
+
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         (

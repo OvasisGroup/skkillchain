@@ -36,13 +36,9 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
     """
-    Minimal identity stub for milestone M0 — just enough for AUTH_USER_MODEL
-    to point somewhere sane before the first migration, and for the Django
-    admin to be usable.
-
-    Profile fields (name, avatar, locale, timezone), role/permission
-    assignment, OAuth identities, refresh tokens, and MFA factors are built
-    out in M1 (docs/07-delivery-planning/02-backend-build-milestones.md).
+    Core identity record. Role/permission assignment lives in
+    apps.authorization; OAuth identities and MFA factors are a follow-up
+    slice of M1 (docs/07-delivery-planning/02-backend-build-milestones.md).
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -64,3 +60,20 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
 
     def __str__(self):
         return self.email
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(
+        User, primary_key=True, on_delete=models.CASCADE, related_name="profile"
+    )
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+    avatar_url = models.URLField(blank=True)
+    locale = models.CharField(max_length=10, default="en")
+    timezone = models.CharField(max_length=50, default="UTC")
+
+    class Meta:
+        db_table = "profiles"
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}".strip() or str(self.user_id)
