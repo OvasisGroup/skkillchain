@@ -33,6 +33,8 @@ INSTALLED_APPS = [
     "apps.identity",
     "apps.authorization",
     "apps.audit",
+    "apps.catalog",
+    "apps.content",
     "shared.health",
 ]
 

@@ -113,26 +113,44 @@ OpenAPI operation → live Swagger UI → passing contract test.
 
 ---
 
-### M3 — Course Catalog, Content, and Instructor Authoring
+### M3 — Course Catalog, Content, and Instructor Authoring — core done, two pieces deferred
 **Sprint 2–3** · Apps: `catalog`, `content`, `search`
 **Requirements**: FR-CRS-001 – FR-CRS-004
 
-- `courses`, `sections`, `lessons`, `videos`, `downloadable_resources`, `captions`,
-  `transcripts`, `categories`, `tags` models and instructor-authoring CRUD.
-- Course lifecycle state machine: draft → submitted → approved/rejected → published/archived,
-  enforced server-side (not just in the client) so a status transition can never skip review.
-- Video provider adapter (Mux/Bunny/Vimeo strategy pattern) with signed upload-init flow.
-- Elasticsearch indexing via post-save signals + a Celery task (never index synchronously
-  in the request path); `/search/courses` with the full filter set from
-  [API docs §16](../03-api/01-api-documentation.md#16-search-and-filtering).
+**Built and verified end-to-end** (draft → sections/lessons → submit-review → RBAC-gated
+approve/reject → publish → public visibility, all exercised over real HTTP against the
+containerized stack, not just unit tests):
+- `Category`, `Tag`, `Course` (+ prerequisites, learning objectives), `Section`, `Lesson` models
+  and instructor-authoring CRUD, all owner-scoped (an instructor can only see/mutate their own
+  courses — enforced via queryset filtering + explicit 403s, tested for the negative case too).
+- Course lifecycle state machine (`Course.submit_for_review/approve/reject/publish/archive`):
+  draft → submitted → approved/rejected → published → archived, enforced server-side via an
+  `InvalidCourseTransition` exception a client can't bypass by calling the "wrong" endpoint.
+- `/api/v1/admin/courses/*` review endpoints gated by the `courses.approve` permission (seeded
+  via migration onto `content_reviewer`/`administrator`/`super_administrator`), not just
+  ownership — a student or an unrelated instructor gets a 403.
+- Public browsing (`/courses`, `/courses/{id}`, `/courses/{id}/preview`, `/categories`, `/tags`)
+  with cursor pagination; unpublished courses return 404 (not 403) to non-owners, so a course's
+  existence isn't itself information a stranger should get.
 
-**Security checklist**: instructors can only mutate their own courses (object-level permission,
-tested explicitly, not just role-level); uploaded resource files are type/size validated and
-never served from the app's own domain unversioned (signed S3 URLs only).
+**Deferred to a follow-up** (same reasoning as M1's OAuth/MFA split — shipping a verified core
+now rather than a half-tested everything):
+- **Video provider adapter** (Mux/Bunny/Vimeo) and the `videos` / `downloadable_resources`
+  models — `Lesson.lesson_type` supports `"video"` as a label today, but there's no upload flow
+  or provider integration wired up yet.
+- **Elasticsearch indexing and `/search/courses`** — the public list endpoint filters on the
+  Postgres row directly (category/language/difficulty), which is correct but doesn't touch
+  Elasticsearch, Celery, or RabbitMQ; none of that infrastructure has any real task code running
+  through it yet despite the containers existing since M0.
 
-**Exit criteria**: an instructor can author a course end-to-end and get it published through
-review; a search query with combined filters returns correct, indexed results within the
-NFR-PERF-001 target (P95 < 300ms).
+**Security checklist**: instructors can only mutate their own courses — done, tested (both the
+positive "owner can edit" and negative "non-owner gets 403/404" cases). Uploaded-resource
+validation is part of the deferred video/resources piece above.
+
+**Exit criteria**: revised to match the sliced scope — an instructor can author a course
+end-to-end and get it published through a permission-gated review, verified live. The original
+exit criteria's search-latency clause (NFR-PERF-001) moves to the search follow-up, since there's
+no search yet to measure.
 
 ---
 

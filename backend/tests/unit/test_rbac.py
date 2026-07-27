@@ -19,7 +19,10 @@ class _ProtectedView(APIView):
 
 
 def _grant(user, resource, action, code):
-    permission = Permission.objects.create(resource=resource, action=action)
+    # get_or_create: "courses.approve" is real seeded data as of M3
+    # (apps/catalog/migrations/0002_seed_course_approve_permission.py), so
+    # a plain create() here would collide with the migration-seeded row.
+    permission, _ = Permission.objects.get_or_create(resource=resource, action=action)
     role = Role.objects.create(code=code, name=code)
     role.permissions.add(permission)
     UserRole.objects.create(user=user, role=role)
