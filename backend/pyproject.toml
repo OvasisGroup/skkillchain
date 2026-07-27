@@ -22,6 +22,7 @@ dependencies = [
     "PyJWT[crypto]>=2.9,<2.10",
     "requests>=2.32,<2.33",
     "pyotp>=2.9,<2.10",
+    "django-cors-headers>=4.4,<4.5",
 ]
 
 [project.optional-dependencies]

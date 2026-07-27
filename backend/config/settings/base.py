@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
+    "corsheaders",
     "apps.identity",
     "apps.authorization",
     "apps.audit",
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -117,6 +119,7 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
+SECURE_REFERRER_POLICY = "same-origin"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -129,6 +132,10 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "shared.api.exceptions.rfc7807_exception_handler",
+    # Cursor-based per docs/03-api/01-api-documentation.md §1 — stable under
+    # concurrent writes to the underlying list, unlike offset pagination.
+    "DEFAULT_PAGINATION_CLASS": "shared.api.pagination.DefaultCursorPagination",
+    "PAGE_SIZE": 20,
     # Opt-in per-view via `throttle_scope = "..."` — a no-op for views that
     # don't set one, so this is safe as a global default.
     "DEFAULT_THROTTLE_CLASSES": [

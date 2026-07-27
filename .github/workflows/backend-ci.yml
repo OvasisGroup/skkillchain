@@ -34,6 +34,17 @@ jobs:
       - run: ruff check .
       - run: black --check .
       - run: mypy .
+      # Fails on any drf-spectacular introspection error/warning (missing
+      # serializer, unresolvable type, etc.) — this is what caught two real
+      # bugs during M1 (LogoutView and MFAVerifyView had no inferrable
+      # response schema). Deliberately NOT diffed against the full
+      # docs/03-api/02-openapi.yaml: that file is the aspirational
+      # full-platform design (125 routes) written during planning, while
+      # the codebase implements it incrementally milestone by milestone —
+      # a literal diff would fail every PR until the entire API exists.
+      # Docs are instead updated by hand alongside each milestone that adds
+      # real endpoints (see commit history for M1's OAuth/MFA docs updates).
+      - run: python manage.py spectacular --fail-on-warn --file /dev/null
 
   test:
     runs-on: ubuntu-latest
