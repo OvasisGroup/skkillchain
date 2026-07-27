@@ -1,0 +1,1359 @@
+openapi: 3.1.0
+info:
+  title: SkillChain Learning Platform API
+  version: 1.0.0
+  description: Enterprise learning platform REST API
+servers:
+  - url: https://api.skillchain.com/api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Courses
+  - name: Instructor
+  - name: Student
+  - name: LiveSessions
+  - name: Assessments
+  - name: Payments
+  - name: Messaging
+  - name: Reviews
+  - name: Admin
+  - name: Analytics
+  - name: AI
+  - name: Webhooks
+  - name: Certificates
+  - name: Progress
+  - name: Notifications
+paths:
+  # ---------- Authentication ----------
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+  /auth/token/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      responses:
+        '200': { description: Token refreshed }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke refresh token / end session
+      responses:
+        '204': { description: Logged out }
+  /auth/mfa/enroll:
+    post:
+      tags: [Auth]
+      summary: Enroll a new MFA factor (TOTP/WebAuthn)
+      responses:
+        '200': { description: Enrollment challenge issued }
+  /auth/mfa/verify:
+    post:
+      tags: [Auth]
+      summary: Verify an MFA challenge
+      responses:
+        '200': { description: MFA verified }
+  /auth/oauth/{provider}/redirect:
+    get:
+      tags: [Auth]
+      summary: Start OAuth redirect (Google/Apple/Facebook)
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema: { type: string, enum: [google, apple, facebook] }
+      responses:
+        '302': { description: Redirect to provider }
+  /auth/oauth/{provider}/callback:
+    get:
+      tags: [Auth]
+      summary: OAuth provider callback
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema: { type: string, enum: [google, apple, facebook] }
+      responses:
+        '200':
+          description: Authenticated via OAuth
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      responses:
+        '200': { description: Current user }
+    patch:
+      tags: [Auth]
+      summary: Update current user profile
+      responses:
+        '200': { description: Profile updated }
+
+  # ---------- Course Catalog ----------
+  /courses:
+    get:
+      tags: [Courses]
+      summary: List courses
+      parameters:
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: language
+          schema: { type: string }
+        - in: query
+          name: difficulty
+          schema: { type: string, enum: [beginner, intermediate, advanced] }
+      responses:
+        '200':
+          description: Course list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseListResponse'
+  /courses/{courseId}:
+    get:
+      tags: [Courses]
+      summary: Get course details
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Course details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+  /courses/{courseId}/preview:
+    get:
+      tags: [Courses]
+      summary: Get free preview content for a course
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Preview lessons/videos }
+  /categories:
+    get:
+      tags: [Courses]
+      summary: List categories
+      responses:
+        '200': { description: Category list }
+  /tags:
+    get:
+      tags: [Courses]
+      summary: List tags
+      responses:
+        '200': { description: Tag list }
+  /search/courses:
+    get:
+      tags: [Courses]
+      summary: Search courses with facets and filters
+      parameters:
+        - in: query
+          name: text
+          schema: { type: string }
+        - in: query
+          name: rating_min
+          schema: { type: number }
+        - in: query
+          name: price_min
+          schema: { type: number }
+        - in: query
+          name: price_max
+          schema: { type: number }
+        - in: query
+          name: sort_by
+          schema: { type: string, enum: [relevance, newest, rating, price_asc, price_desc] }
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseListResponse'
+
+  # ---------- Instructor Content Management ----------
+  /instructor/courses:
+    post:
+      tags: [Instructor]
+      summary: Create course
+      responses:
+        '201': { description: Course created }
+  /instructor/courses/{courseId}:
+    patch:
+      tags: [Instructor]
+      summary: Update course draft
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Course updated }
+  /instructor/courses/{courseId}/submit-review:
+    post:
+      tags: [Instructor]
+      summary: Submit course for content review
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Submitted for review }
+  /instructor/courses/{courseId}/publish:
+    post:
+      tags: [Instructor]
+      summary: Publish an approved course
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Course published }
+  /instructor/courses/{courseId}/sections:
+    post:
+      tags: [Instructor]
+      summary: Create a course section
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Section created }
+  /instructor/sections/{sectionId}/lessons:
+    post:
+      tags: [Instructor]
+      summary: Create a lesson within a section
+      parameters:
+        - in: path
+          name: sectionId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Lesson created }
+  /instructor/lessons/{lessonId}/videos/upload-init:
+    post:
+      tags: [Instructor]
+      summary: Initialize a direct-to-provider video upload
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Upload session issued }
+  /instructor/lessons/{lessonId}/resources:
+    post:
+      tags: [Instructor]
+      summary: Attach a downloadable resource to a lesson
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Resource attached }
+  /instructor/courses/{courseId}/quizzes:
+    post:
+      tags: [Instructor]
+      summary: Create a quiz for a course
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Quiz created }
+  /instructor/courses/{courseId}/assignments:
+    post:
+      tags: [Instructor]
+      summary: Create an assignment for a course
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Assignment created }
+  /instructor/courses/{courseId}/coupons:
+    post:
+      tags: [Instructor]
+      summary: Create a course-scoped coupon
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Coupon created }
+  /instructor/dashboard/revenue:
+    get:
+      tags: [Instructor]
+      summary: Instructor revenue dashboard summary
+      responses:
+        '200': { description: Revenue summary }
+  /instructor/dashboard/analytics:
+    get:
+      tags: [Instructor]
+      summary: Instructor course and engagement analytics
+      responses:
+        '200': { description: Analytics summary }
+  /instructor/payout-requests:
+    post:
+      tags: [Instructor]
+      summary: Request a payout of available balance
+      responses:
+        '201': { description: Payout request created }
+
+  # ---------- Student Learning ----------
+  /enrollments:
+    post:
+      tags: [Student]
+      summary: Enroll in a course
+      responses:
+        '201': { description: Enrolled }
+  /students/me/courses:
+    get:
+      tags: [Student]
+      summary: List purchased/enrolled courses
+      responses:
+        '200': { description: Enrolled course list }
+  /students/me/continue-learning:
+    get:
+      tags: [Student]
+      summary: Continue-learning feed
+      responses:
+        '200': { description: In-progress course list }
+  /students/me/wishlist:
+    get:
+      tags: [Student]
+      summary: List wishlist items
+      responses:
+        '200': { description: Wishlist }
+  /students/me/wishlist/{courseId}:
+    post:
+      tags: [Student]
+      summary: Add course to wishlist
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Added to wishlist }
+    delete:
+      tags: [Student]
+      summary: Remove course from wishlist
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Removed from wishlist }
+  /progress:
+    post:
+      tags: [Progress]
+      summary: Update lesson progress
+      responses:
+        '200': { description: Updated }
+  /progress/{enrollmentId}:
+    get:
+      tags: [Progress]
+      summary: Get progress for an enrollment
+      parameters:
+        - in: path
+          name: enrollmentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Progress detail }
+  /lesson-notes:
+    post:
+      tags: [Student]
+      summary: Create a timestamped lesson note
+      responses:
+        '201': { description: Note created }
+  /bookmarks:
+    post:
+      tags: [Student]
+      summary: Create a lesson bookmark
+      responses:
+        '201': { description: Bookmark created }
+  /certificates:
+    get:
+      tags: [Certificates]
+      summary: List certificates earned by the current user
+      responses:
+        '200': { description: Certificate list }
+  /certificates/{certificateUid}/verify:
+    get:
+      tags: [Certificates]
+      summary: Verify certificate
+      parameters:
+        - in: path
+          name: certificateUid
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Certificate verification result }
+
+  # ---------- Live Sessions ----------
+  /instructor/conferencing-accounts/connect/{provider}:
+    post:
+      tags: [LiveSessions]
+      summary: Start OAuth connect flow for an instructor's Zoom or Google account
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema: { type: string, enum: [zoom, google_meet] }
+      responses:
+        '200': { description: OAuth authorization URL issued }
+  /instructor/conferencing-accounts:
+    get:
+      tags: [LiveSessions]
+      summary: List connected conferencing accounts
+      responses:
+        '200': { description: Connected account list }
+  /instructor/conferencing-accounts/{accountId}:
+    delete:
+      tags: [LiveSessions]
+      summary: Disconnect a conferencing account and revoke tokens
+      parameters:
+        - in: path
+          name: accountId
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Disconnected }
+  /instructor/courses/{courseId}/live-sessions:
+    post:
+      tags: [LiveSessions]
+      summary: Schedule a live session for a course (creates the remote meeting via provider adapter)
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LiveSessionCreateRequest'
+      responses:
+        '201':
+          description: Live session scheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveSession'
+  /instructor/live-sessions/{liveSessionId}:
+    patch:
+      tags: [LiveSessions]
+      summary: Reschedule or update a live session
+      parameters:
+        - in: path
+          name: liveSessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Live session updated }
+  /instructor/live-sessions/{liveSessionId}/cancel:
+    post:
+      tags: [LiveSessions]
+      summary: Cancel a live session and notify registrants
+      parameters:
+        - in: path
+          name: liveSessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Live session canceled }
+  /instructor/live-sessions/{liveSessionId}/registrations:
+    get:
+      tags: [LiveSessions]
+      summary: List registrants and attendance for a live session
+      parameters:
+        - in: path
+          name: liveSessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Registration list }
+  /courses/{courseId}/live-sessions:
+    get:
+      tags: [LiveSessions]
+      summary: List upcoming and past live sessions for a course
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Live session list }
+  /students/me/live-sessions:
+    get:
+      tags: [LiveSessions]
+      summary: List the current user's registered live sessions
+      responses:
+        '200': { description: Live session list }
+  /live-sessions/{liveSessionId}/register:
+    post:
+      tags: [LiveSessions]
+      summary: Register for a live session (requires course enrollment)
+      parameters:
+        - in: path
+          name: liveSessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Registered }
+    delete:
+      tags: [LiveSessions]
+      summary: Cancel a live session registration
+      parameters:
+        - in: path
+          name: liveSessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Registration canceled }
+  /live-sessions/{liveSessionId}/join:
+    get:
+      tags: [LiveSessions]
+      summary: Get the join URL (only issued to registered students within the join window)
+      parameters:
+        - in: path
+          name: liveSessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Join URL }
+        '403': { description: Outside join window or not registered }
+  /live-sessions/{liveSessionId}/recording:
+    get:
+      tags: [LiveSessions]
+      summary: Get the recording playback URL once available
+      parameters:
+        - in: path
+          name: liveSessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Recording metadata and playback URL }
+        '404': { description: Recording not yet available }
+
+  # ---------- Assessments ----------
+  /quizzes/{quizId}:
+    get:
+      tags: [Assessments]
+      summary: Get quiz detail
+      parameters:
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Quiz detail }
+  /quizzes/{quizId}/attempts:
+    post:
+      tags: [Assessments]
+      summary: Start a quiz attempt
+      parameters:
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Attempt started }
+  /quizzes/{quizId}/submit:
+    post:
+      tags: [Assessments]
+      summary: Submit quiz answers
+      parameters:
+        - in: path
+          name: quizId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Quiz graded }
+  /assignments/{assignmentId}/submissions:
+    post:
+      tags: [Assessments]
+      summary: Submit an assignment
+      parameters:
+        - in: path
+          name: assignmentId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Submission created }
+  /students/me/grades:
+    get:
+      tags: [Assessments]
+      summary: List quiz/assignment grades for the current user
+      responses:
+        '200': { description: Grade list }
+  /coding-exercises/{exerciseId}:
+    get:
+      tags: [Assessments]
+      summary: Get coding exercise detail (prompt, starter code, constraints)
+      parameters:
+        - in: path
+          name: exerciseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Coding exercise detail }
+  /coding-exercises/{exerciseId}/submissions:
+    post:
+      tags: [Assessments]
+      summary: Submit source code for judged execution
+      parameters:
+        - in: path
+          name: exerciseId
+          required: true
+          schema: { type: string }
+      responses:
+        '202': { description: Submission queued for judging }
+  /coding-exercises/{exerciseId}/submissions/{submissionId}:
+    get:
+      tags: [Assessments]
+      summary: Get coding submission result
+      parameters:
+        - in: path
+          name: exerciseId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: submissionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Submission result }
+
+  # ---------- Commerce ----------
+  /checkout/orders:
+    post:
+      tags: [Payments]
+      summary: Create checkout order
+      responses:
+        '201': { description: Order created }
+  /checkout/orders/{orderId}/apply-coupon:
+    post:
+      tags: [Payments]
+      summary: Apply a coupon code to an order
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Coupon applied }
+  /checkout/orders/{orderId}/apply-gift-card:
+    post:
+      tags: [Payments]
+      summary: Apply a gift card balance to an order
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+                amount: { type: string, description: Optional partial amount to apply }
+      responses:
+        '200': { description: Gift card applied, order totals recalculated }
+  /checkout/orders/{orderId}/pay:
+    post:
+      tags: [Payments]
+      summary: Pay order with selected provider
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Payment initiated }
+  /payments:
+    get:
+      tags: [Payments]
+      summary: List payments for the current user
+      responses:
+        '200': { description: Payment list }
+  /invoices:
+    get:
+      tags: [Payments]
+      summary: List invoices for the current user
+      responses:
+        '200': { description: Invoice list }
+  /refunds:
+    post:
+      tags: [Payments]
+      summary: Request a refund for a payment
+      responses:
+        '201': { description: Refund requested }
+  /subscriptions:
+    get:
+      tags: [Payments]
+      summary: List subscriptions for the current user/organization
+      responses:
+        '200': { description: Subscription list }
+    post:
+      tags: [Payments]
+      summary: Create a subscription
+      responses:
+        '201': { description: Subscription created }
+  /subscriptions/{subscriptionId}/cancel:
+    patch:
+      tags: [Payments]
+      summary: Cancel a subscription
+      parameters:
+        - in: path
+          name: subscriptionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Subscription canceled }
+  /plans:
+    get:
+      tags: [Payments]
+      summary: List available subscription plans
+      responses:
+        '200': { description: Plan list }
+  /gift-cards/{code}:
+    get:
+      tags: [Payments]
+      summary: Look up gift card balance by code
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Gift card balance }
+
+  # ---------- Messaging and Notifications ----------
+  /threads:
+    get:
+      tags: [Messaging]
+      summary: List message threads
+      responses:
+        '200': { description: Thread list }
+    post:
+      tags: [Messaging]
+      summary: Create message thread
+      responses:
+        '201': { description: Thread created }
+  /threads/{threadId}/messages:
+    get:
+      tags: [Messaging]
+      summary: List messages in a thread
+      parameters:
+        - in: path
+          name: threadId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Message list }
+    post:
+      tags: [Messaging]
+      summary: Send a message in a thread
+      parameters:
+        - in: path
+          name: threadId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Message sent }
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications
+      responses:
+        '200': { description: Notification list }
+  /notifications/mark-read:
+    post:
+      tags: [Notifications]
+      summary: Mark notifications as read
+      responses:
+        '200': { description: Notifications marked read }
+
+  # ---------- Reviews and Community ----------
+  /courses/{courseId}/reviews:
+    get:
+      tags: [Reviews]
+      summary: List reviews
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Review list }
+    post:
+      tags: [Reviews]
+      summary: Create review
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Review created }
+  /reviews/{reviewId}:
+    patch:
+      tags: [Reviews]
+      summary: Update own review
+      parameters:
+        - in: path
+          name: reviewId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Review updated }
+    delete:
+      tags: [Reviews]
+      summary: Delete own review
+      parameters:
+        - in: path
+          name: reviewId
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Review deleted }
+  /courses/{courseId}/discussions:
+    get:
+      tags: [Reviews]
+      summary: List course discussion threads
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Discussion list }
+    post:
+      tags: [Reviews]
+      summary: Post a course discussion topic/comment
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Discussion post created }
+
+  # ---------- Admin ----------
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List platform users
+      responses:
+        '200': { description: User list }
+  /admin/users/{userId}/status:
+    patch:
+      tags: [Admin]
+      summary: Suspend/reinstate a user
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Status updated }
+  /admin/instructors:
+    get:
+      tags: [Admin]
+      summary: List instructor applications/accounts
+      responses:
+        '200': { description: Instructor list }
+  /admin/instructors/{userId}/approve:
+    post:
+      tags: [Admin]
+      summary: Approve an instructor application
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Instructor approved }
+  /admin/courses/pending-review:
+    get:
+      tags: [Admin]
+      summary: List courses pending approval
+      responses:
+        '200': { description: Pending courses }
+  /admin/courses/{courseId}/approve:
+    post:
+      tags: [Admin]
+      summary: Approve a submitted course
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Course approved }
+  /admin/courses/{courseId}/reject:
+    post:
+      tags: [Admin]
+      summary: Reject a submitted course with reasons
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Course rejected }
+  /admin/reports/revenue:
+    get:
+      tags: [Admin]
+      summary: Revenue report
+      responses:
+        '200': { description: Revenue report payload }
+  /admin/reports/engagement:
+    get:
+      tags: [Admin]
+      summary: Engagement report
+      responses:
+        '200': { description: Engagement report payload }
+  /admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: List audit log entries
+      responses:
+        '200': { description: Audit log list }
+  /admin/support-tickets:
+    get:
+      tags: [Admin]
+      summary: List support tickets
+      responses:
+        '200': { description: Support ticket list }
+  /admin/support-tickets/{ticketId}:
+    patch:
+      tags: [Admin]
+      summary: Update support ticket status/assignment
+      parameters:
+        - in: path
+          name: ticketId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Ticket updated }
+  /admin/settings:
+    get:
+      tags: [Admin]
+      summary: Get site settings
+      responses:
+        '200': { description: Settings payload }
+    patch:
+      tags: [Admin]
+      summary: Update site settings
+      responses:
+        '200': { description: Settings updated }
+  /admin/coupons:
+    get:
+      tags: [Admin]
+      summary: List coupons
+      responses:
+        '200': { description: Coupon list }
+    post:
+      tags: [Admin]
+      summary: Create a platform-wide coupon
+      responses:
+        '201': { description: Coupon created }
+  /admin/promotions:
+    get:
+      tags: [Admin]
+      summary: List promotional campaigns
+      responses:
+        '200': { description: Promotion list }
+    post:
+      tags: [Admin]
+      summary: Create a promotional campaign
+      responses:
+        '201': { description: Promotion created }
+  /admin/promotions/{promotionId}:
+    patch:
+      tags: [Admin]
+      summary: Update a promotional campaign
+      parameters:
+        - in: path
+          name: promotionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Promotion updated }
+  /admin/email-templates:
+    get:
+      tags: [Admin]
+      summary: List email templates
+      responses:
+        '200': { description: Email template list }
+  /admin/email-templates/{templateCode}:
+    patch:
+      tags: [Admin]
+      summary: Update an email template
+      parameters:
+        - in: path
+          name: templateCode
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Email template updated }
+  /admin/notification-templates:
+    get:
+      tags: [Admin]
+      summary: List notification templates
+      responses:
+        '200': { description: Notification template list }
+  /admin/notification-templates/{templateCode}:
+    patch:
+      tags: [Admin]
+      summary: Update a notification template
+      parameters:
+        - in: path
+          name: templateCode
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Notification template updated }
+
+  # ---------- Analytics ----------
+  /analytics/revenue:
+    get:
+      tags: [Analytics]
+      summary: Revenue analytics
+      responses:
+        '200': { description: Revenue analytics payload }
+  /analytics/course-performance:
+    get:
+      tags: [Analytics]
+      summary: Course performance analytics
+      responses:
+        '200': { description: Course performance payload }
+  /analytics/student-engagement:
+    get:
+      tags: [Analytics]
+      summary: Student engagement analytics
+      responses:
+        '200': { description: Engagement payload }
+  /analytics/completion:
+    get:
+      tags: [Analytics]
+      summary: Completion rate analytics
+      responses:
+        '200': { description: Completion payload }
+  /analytics/watch-time:
+    get:
+      tags: [Analytics]
+      summary: Watch-time analytics
+      responses:
+        '200': { description: Watch-time payload }
+  /analytics/drop-off:
+    get:
+      tags: [Analytics]
+      summary: Drop-off analysis
+      responses:
+        '200': { description: Drop-off payload }
+  /analytics/instructor-earnings:
+    get:
+      tags: [Analytics]
+      summary: Instructor earnings analytics
+      responses:
+        '200': { description: Earnings payload }
+
+  # ---------- AI ----------
+  /ai/tutor/sessions:
+    post:
+      tags: [AI]
+      summary: Start an AI tutor chat session
+      responses:
+        '201': { description: Session created }
+  /ai/tutor/sessions/{sessionId}/messages:
+    post:
+      tags: [AI]
+      summary: Send a message to the AI tutor
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: AI tutor reply }
+  /ai/courses/{courseId}/generate-quiz:
+    post:
+      tags: [AI]
+      summary: Generate a draft quiz from course content
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '202': { description: Generation job queued }
+  /ai/lessons/{lessonId}/generate-summary:
+    post:
+      tags: [AI]
+      summary: Generate an AI summary for a lesson
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string }
+      responses:
+        '202': { description: Generation job queued }
+  /ai/lessons/{lessonId}/generate-flashcards:
+    post:
+      tags: [AI]
+      summary: Generate flashcards from a lesson
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string }
+      responses:
+        '202': { description: Generation job queued }
+  /students/me/flashcards:
+    get:
+      tags: [AI]
+      summary: List saved flashcards for the current user
+      responses:
+        '200': { description: Flashcard list }
+  /ai/videos/{videoId}/generate-transcript:
+    post:
+      tags: [AI]
+      summary: Generate a transcript for a video
+      parameters:
+        - in: path
+          name: videoId
+          required: true
+          schema: { type: string }
+      responses:
+        '202': { description: Generation job queued }
+  /ai/videos/{videoId}/generate-subtitles:
+    post:
+      tags: [AI]
+      summary: Generate subtitles for a video
+      parameters:
+        - in: path
+          name: videoId
+          required: true
+          schema: { type: string }
+      responses:
+        '202': { description: Generation job queued }
+  /ai/assignments/{submissionId}/grade:
+    post:
+      tags: [AI]
+      summary: Request AI-assisted grading for a submission
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema: { type: string }
+      responses:
+        '202': { description: Grading job queued }
+  /ai/recommendations/courses:
+    get:
+      tags: [AI]
+      summary: AI-powered course recommendations for the current user
+      responses:
+        '200': { description: Recommended course list }
+  /ai/recommendations/learning-paths:
+    get:
+      tags: [AI]
+      summary: AI-powered learning path recommendations
+      responses:
+        '200': { description: Recommended learning path list }
+  /ai/search:
+    get:
+      tags: [AI]
+      summary: Natural-language semantic search across the catalog
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Search results }
+
+  # ---------- Webhooks (inbound, provider-signed) ----------
+  /webhooks/stripe:
+    post:
+      tags: [Webhooks]
+      summary: Stripe event webhook
+      responses:
+        '200': { description: Event accepted }
+  /webhooks/paypal:
+    post:
+      tags: [Webhooks]
+      summary: PayPal event webhook
+      responses:
+        '200': { description: Event accepted }
+  /webhooks/flutterwave:
+    post:
+      tags: [Webhooks]
+      summary: Flutterwave event webhook
+      responses:
+        '200': { description: Event accepted }
+  /webhooks/paystack:
+    post:
+      tags: [Webhooks]
+      summary: Paystack event webhook
+      responses:
+        '200': { description: Event accepted }
+  /webhooks/mpesa:
+    post:
+      tags: [Webhooks]
+      summary: M-Pesa event webhook
+      responses:
+        '200': { description: Event accepted }
+  /webhooks/video/{provider}:
+    post:
+      tags: [Webhooks]
+      summary: Video provider event webhook (encoding/asset-ready)
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema: { type: string, enum: [mux, bunny, vimeo] }
+      responses:
+        '200': { description: Event accepted }
+  /webhooks/zoom:
+    post:
+      tags: [Webhooks]
+      summary: Zoom event webhook (meeting.started, meeting.ended, recording.completed)
+      responses:
+        '200': { description: Event accepted }
+  /webhooks/google-meet:
+    post:
+      tags: [Webhooks]
+      summary: Google Calendar push-notification channel (meeting end signal; Drive recording availability requires a follow-up poll)
+      responses:
+        '200': { description: Event accepted }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    TokenResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        expires_in: { type: integer }
+    Course:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        language: { type: string }
+        difficulty: { type: string }
+        rating: { type: number, format: float }
+        price:
+          type: object
+          properties:
+            amount: { type: string }
+            currency: { type: string }
+    CourseListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Course'
+        next_cursor: { type: string, nullable: true }
+    LiveSessionCreateRequest:
+      type: object
+      required: [conferencing_account_id, provider, title, scheduled_start_at, scheduled_end_at, timezone]
+      properties:
+        conferencing_account_id: { type: string }
+        provider: { type: string, enum: [zoom, google_meet] }
+        title: { type: string }
+        description: { type: string }
+        scheduled_start_at: { type: string, format: date-time }
+        scheduled_end_at: { type: string, format: date-time }
+        timezone: { type: string, description: 'IANA timezone, e.g. Africa/Nairobi' }
+        capacity: { type: integer, nullable: true }
+        is_recorded: { type: boolean, default: true }
+    LiveSession:
+      type: object
+      properties:
+        id: { type: string }
+        course_id: { type: string, nullable: true }
+        provider: { type: string, enum: [zoom, google_meet] }
+        title: { type: string }
+        status: { type: string, enum: [scheduled, live, ended, canceled] }
+        scheduled_start_at: { type: string, format: date-time }
+        scheduled_end_at: { type: string, format: date-time }
+        timezone: { type: string }
+        external_meeting_id: { type: string }
+        host_join_url: { type: string }
