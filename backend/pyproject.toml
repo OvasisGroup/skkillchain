@@ -37,6 +37,9 @@ dependencies = [
     # succeed everywhere this installs. 5.9.0 has a universal wheel.
     "cbor2==5.9.0",
     "anthropic>=0.40,<0.50",
+    # Already pulled in transitively by drf-spectacular; pinned explicitly
+    # because scripts/reconcile_openapi_spec.py imports it directly.
+    "PyYAML>=6.0,<7.0",
 ]
 
 [project.optional-dependencies]
