@@ -122,6 +122,9 @@ class AssignmentSubmissionSerializer(serializers.ModelSerializer):
             "feedback",
             "graded_at",
             "submitted_at",
+            "ai_suggested_grade",
+            "ai_suggested_feedback",
+            "ai_suggested_at",
         ]
 
 

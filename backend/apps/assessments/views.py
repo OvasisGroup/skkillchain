@@ -161,6 +161,37 @@ class InstructorAssignmentGradeView(APIView):
         return Response(AssignmentSubmissionSerializer(submission).data)
 
 
+@extend_schema(tags=["Instructor"], request=None, responses={200: AssignmentSubmissionSerializer})
+class AssignmentSubmissionApproveAIGradeView(APIView):
+    """The instructor's explicit approval action — an AI-suggested grade
+    can reach `grade`/`graded_by`/`graded_at` only through this endpoint,
+    never automatically. See apps.ai.services.suggest_assignment_grade,
+    which only ever writes ai_suggested_*."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, submission_id):
+        submission = get_object_or_404(AssignmentSubmission, pk=submission_id)
+        _owned_course_or_403(submission.assignment.course_id, request.user)
+
+        if submission.ai_suggested_at is None:
+            raise ValidationError("No AI grade suggestion exists for this submission yet.")
+
+        submission.grade = submission.ai_suggested_grade
+        submission.feedback = submission.ai_suggested_feedback
+        submission.graded_by = request.user
+        submission.graded_at = timezone.now()
+        submission.save(update_fields=["grade", "feedback", "graded_by", "graded_at"])
+        record_event(
+            actor=request.user,
+            action="assignment_submission.approve_ai_grade",
+            entity_type="AssignmentSubmission",
+            entity_id=submission.id,
+            request=request,
+        )
+        return Response(AssignmentSubmissionSerializer(submission).data)
+
+
 # ---------- Quizzes (student) ----------
 
 

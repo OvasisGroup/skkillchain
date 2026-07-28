@@ -28,6 +28,11 @@ urlpatterns = [
         views.InstructorAssignmentGradeView.as_view(),
         name="instructor-assignment-grade",
     ),
+    path(
+        "assignments/submissions/<uuid:submission_id>/approve-ai-grade/",
+        views.AssignmentSubmissionApproveAIGradeView.as_view(),
+        name="assignment-submission-approve-ai-grade",
+    ),
     path("quizzes/<uuid:id>/", views.QuizDetailView.as_view(), name="quiz-detail"),
     path(
         "quizzes/<uuid:id>/attempts/",

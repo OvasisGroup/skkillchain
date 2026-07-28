@@ -152,6 +152,14 @@ class AssignmentSubmission(models.Model):
     )
     graded_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
+    # AI-suggested grading (M8) — deliberately separate from grade/
+    # feedback/graded_by/graded_at above, which stay exclusively
+    # human-authoritative. A suggestion here never reaches the real grade
+    # fields except through the instructor's explicit
+    # approve-ai-grade action (apps.assessments.views).
+    ai_suggested_grade = models.FloatField(null=True, blank=True)
+    ai_suggested_feedback = models.TextField(blank=True, default="")
+    ai_suggested_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "assignment_submissions"

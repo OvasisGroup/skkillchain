@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import AiChatMessage, AiChatSession
+from .models import AiChatMessage, AiChatSession, AiGenerationJob, Flashcard
 
 
 class AiChatSessionSerializer(serializers.ModelSerializer):
@@ -21,3 +21,24 @@ class AiChatMessageSerializer(serializers.ModelSerializer):
 
 class AiChatMessageCreateSerializer(serializers.Serializer):
     body = serializers.CharField(allow_blank=False)
+
+
+class AiGenerationJobSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AiGenerationJob
+        fields = [
+            "id",
+            "job_type",
+            "source_type",
+            "source_id",
+            "status",
+            "started_at",
+            "completed_at",
+            "error_message",
+        ]
+
+
+class FlashcardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Flashcard
+        fields = ["id", "course", "lesson", "front_text", "back_text", "created_at"]
