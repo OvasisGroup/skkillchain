@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "apps.moderation",
     "apps.platform_settings",
     "apps.analytics",
+    "apps.privacy",
     "shared.health",
 ]
 

@@ -38,3 +38,9 @@ class AppliedAtCursorPagination(DefaultCursorPagination):
     """For models with `applied_at` instead of `created_at` (InstructorApplication)."""
 
     ordering = "-applied_at"
+
+
+class RequestedAtCursorPagination(DefaultCursorPagination):
+    """For models with `requested_at` instead of `created_at` (DataErasureRequest)."""
+
+    ordering = "-requested_at"
