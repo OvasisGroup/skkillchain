@@ -146,6 +146,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "live_sessions.close_ended_sessions",
         "schedule": 300.0,  # every 5 minutes
     },
+    "analytics-aggregate-daily": {
+        "task": "analytics.aggregate_daily",
+        "schedule": 86400.0,  # once per day
+    },
 }
 
 AUTH_USER_MODEL = "identity.User"
