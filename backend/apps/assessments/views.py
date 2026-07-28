@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -54,8 +54,55 @@ def _require_enrollment(user, course_id):
 # ---------- Instructor authoring ----------
 
 
+_QUIZ_CREATE_EXAMPLE = {
+    "title": "Basics Quiz",
+    "attempts_allowed": 2,
+    "pass_score": 70,
+    "questions": [
+        {
+            "type": "single_choice",
+            "prompt": "2 + 2?",
+            "answers": [
+                {"text": "4", "is_correct": True},
+                {"text": "5", "is_correct": False},
+            ],
+        }
+    ],
+}
+
+
 @extend_schema(
-    tags=["Instructor"], request=QuizCreateSerializer, responses={201: QuizDetailSerializer}
+    tags=["Instructor"],
+    request=QuizCreateSerializer,
+    responses={201: QuizDetailSerializer},
+    description="Creates a quiz (optionally with nested questions/answers in one call) for a "
+    "course the current instructor owns. Every question needs at least one answer marked "
+    "is_correct. If section is given, it must belong to the same course.",
+    examples=[
+        OpenApiExample("Create quiz", value=_QUIZ_CREATE_EXAMPLE, request_only=True),
+        OpenApiExample(
+            "Created",
+            value={
+                "id": "b1c2d3e4-...",
+                "title": "Basics Quiz",
+                "attempts_allowed": 2,
+                "pass_score": 70,
+                "questions": [
+                    {
+                        "id": "c1d2e3f4-...",
+                        "type": "single_choice",
+                        "prompt": "2 + 2?",
+                        "sort_order": 0,
+                        "answers": [
+                            {"id": "d1e2f3a4-...", "text": "4", "sort_order": 0},
+                            {"id": "e1f2a3b4-...", "text": "5", "sort_order": 0},
+                        ],
+                    }
+                ],
+            },
+            response_only=True,
+        ),
+    ],
 )
 class InstructorQuizCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -79,7 +126,32 @@ class InstructorQuizCreateView(APIView):
 
 
 @extend_schema(
-    tags=["Instructor"], request=AssignmentCreateSerializer, responses={201: AssignmentSerializer}
+    tags=["Instructor"],
+    request=AssignmentCreateSerializer,
+    responses={201: AssignmentSerializer},
+    description="Creates a written/file assignment for a course the current instructor owns.",
+    examples=[
+        OpenApiExample(
+            "Create assignment",
+            value={
+                "title": "Final Project",
+                "instructions": "Submit a link to your GitHub repo.",
+                "due_policy": "7 days after enrollment",
+            },
+            request_only=True,
+        ),
+        OpenApiExample(
+            "Created",
+            value={
+                "id": "a1b2c3d4-...",
+                "course": "1c2d3e4f-...",
+                "title": "Final Project",
+                "instructions": "Submit a link to your GitHub repo.",
+                "due_policy": "7 days after enrollment",
+            },
+            response_only=True,
+        ),
+    ],
 )
 class InstructorAssignmentCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -103,6 +175,38 @@ class InstructorAssignmentCreateView(APIView):
     tags=["Instructor"],
     request=CodingExerciseCreateSerializer,
     responses={201: CodingExerciseDetailSerializer},
+    description="Creates a judged coding exercise (with hidden/visible test cases) for a "
+    "course the current instructor owns. Requires at least one test case.",
+    examples=[
+        OpenApiExample(
+            "Create exercise",
+            value={
+                "title": "Reverse a string",
+                "prompt": "Write a function reverse(s) that returns s reversed.",
+                "starter_code": "def reverse(s):\n    ...\n",
+                "language": "python",
+                "time_limit_ms": 2000,
+                "memory_limit_mb": 128,
+                "test_cases": [
+                    {"input": "hello", "expected_output": "olleh", "is_hidden": False, "weight": 1}
+                ],
+            },
+            request_only=True,
+        ),
+        OpenApiExample(
+            "Created",
+            value={
+                "id": "b2c3d4e5-...",
+                "title": "Reverse a string",
+                "prompt": "Write a function reverse(s) that returns s reversed.",
+                "starter_code": "def reverse(s):\n    ...\n",
+                "language": "python",
+                "time_limit_ms": 2000,
+                "memory_limit_mb": 128,
+            },
+            response_only=True,
+        ),
+    ],
 )
 class InstructorCodingExerciseCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -122,7 +226,28 @@ class InstructorCodingExerciseCreateView(APIView):
         return Response(CodingExerciseDetailSerializer(exercise).data, status=201)
 
 
-@extend_schema(tags=["Instructor"])
+_ASSIGNMENT_SUBMISSION_EXAMPLE = {
+    "id": "c3d4e5f6-...",
+    "assignment": "a1b2c3d4-...",
+    "student_email": "student@example.com",
+    "content_ref": "https://github.com/student/final-project",
+    "grade": None,
+    "feedback": "",
+    "graded_at": None,
+    "submitted_at": "2026-01-30T12:00:00Z",
+    "ai_suggested_grade": None,
+    "ai_suggested_feedback": "",
+    "ai_suggested_at": None,
+}
+
+
+@extend_schema(
+    tags=["Instructor"],
+    description="Lists submissions for an assignment the current instructor owns.",
+    examples=[
+        OpenApiExample("Submission", value=_ASSIGNMENT_SUBMISSION_EXAMPLE, response_only=True)
+    ],
+)
 class InstructorAssignmentSubmissionsListView(generics.ListAPIView):
     serializer_class = AssignmentSubmissionSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -138,6 +263,23 @@ class InstructorAssignmentSubmissionsListView(generics.ListAPIView):
     tags=["Instructor"],
     request=AssignmentGradeSerializer,
     responses={200: AssignmentSubmissionSerializer},
+    description="Grades an assignment submission for an assignment the current instructor "
+    "owns — overwrites any prior grade (manual or AI-approved).",
+    examples=[
+        OpenApiExample(
+            "Grade", value={"grade": 92, "feedback": "Great work overall."}, request_only=True
+        ),
+        OpenApiExample(
+            "Graded",
+            value={
+                **_ASSIGNMENT_SUBMISSION_EXAMPLE,
+                "grade": 92,
+                "feedback": "Great work overall.",
+                "graded_at": "2026-02-01T09:00:00Z",
+            },
+            response_only=True,
+        ),
+    ],
 )
 class InstructorAssignmentGradeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -164,7 +306,30 @@ class InstructorAssignmentGradeView(APIView):
         return Response(AssignmentSubmissionSerializer(submission).data)
 
 
-@extend_schema(tags=["Instructor"], request=None, responses={200: AssignmentSubmissionSerializer})
+@extend_schema(
+    tags=["Instructor"],
+    request=None,
+    responses={200: AssignmentSubmissionSerializer},
+    description="Approves an AI-suggested grade as-is, copying ai_suggested_grade/"
+    "ai_suggested_feedback into grade/feedback. Fails with 400 if no AI suggestion exists yet "
+    "— to edit the AI's suggestion instead of approving it verbatim, use "
+    "POST .../submissions/{id}/grade/ with the desired values.",
+    examples=[
+        OpenApiExample(
+            "Approved",
+            value={
+                **_ASSIGNMENT_SUBMISSION_EXAMPLE,
+                "grade": 88,
+                "feedback": "Solid implementation, minor style nits.",
+                "graded_at": "2026-02-01T09:00:00Z",
+                "ai_suggested_grade": 88,
+                "ai_suggested_feedback": "Solid implementation, minor style nits.",
+                "ai_suggested_at": "2026-01-31T09:00:00Z",
+            },
+            response_only=True,
+        )
+    ],
+)
 class AssignmentSubmissionApproveAIGradeView(APIView):
     """The instructor's explicit approval action — an AI-suggested grade
     can reach `grade`/`graded_by`/`graded_at` only through this endpoint,
@@ -198,7 +363,36 @@ class AssignmentSubmissionApproveAIGradeView(APIView):
 # ---------- Quizzes (student) ----------
 
 
-@extend_schema(tags=["Student"], responses={200: QuizDetailSerializer})
+@extend_schema(
+    tags=["Student"],
+    responses={200: QuizDetailSerializer},
+    description="Gets a quiz's questions/answers for an enrolled student — is_correct is "
+    "never included here, so a student can't inspect the answer key before attempting.",
+    examples=[
+        OpenApiExample(
+            "Quiz",
+            value={
+                "id": "b1c2d3e4-...",
+                "title": "Basics Quiz",
+                "attempts_allowed": 2,
+                "pass_score": 70,
+                "questions": [
+                    {
+                        "id": "c1d2e3f4-...",
+                        "type": "single_choice",
+                        "prompt": "2 + 2?",
+                        "sort_order": 0,
+                        "answers": [
+                            {"id": "d1e2f3a4-...", "text": "4", "sort_order": 0},
+                            {"id": "e1f2a3b4-...", "text": "5", "sort_order": 0},
+                        ],
+                    }
+                ],
+            },
+            response_only=True,
+        )
+    ],
+)
 class QuizDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -208,7 +402,28 @@ class QuizDetailView(APIView):
         return Response(QuizDetailSerializer(quiz).data)
 
 
-@extend_schema(tags=["Student"], request=None, responses={201: QuizAttemptSerializer})
+@extend_schema(
+    tags=["Student"],
+    request=None,
+    responses={201: QuizAttemptSerializer},
+    description="Starts a quiz attempt for an enrolled student. Fails with 400 if an attempt "
+    "is already in progress, or attempts_allowed has been used up.",
+    examples=[
+        OpenApiExample(
+            "Attempt started",
+            value={
+                "id": "f1e2d3c4-...",
+                "quiz": "b1c2d3e4-...",
+                "status": "in_progress",
+                "started_at": "2026-02-01T10:00:00Z",
+                "submitted_at": None,
+                "score": None,
+                "passed": None,
+            },
+            response_only=True,
+        )
+    ],
+)
 class QuizAttemptStartView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -239,7 +454,32 @@ class QuizAttemptStartView(APIView):
 
 
 @extend_schema(
-    tags=["Student"], request=QuizSubmitSerializer, responses={200: QuizAttemptSerializer}
+    tags=["Student"],
+    request=QuizSubmitSerializer,
+    responses={200: QuizAttemptSerializer},
+    description="Submits answers for the in-progress attempt, grades it immediately (a "
+    "multiple_choice question only counts as correct if every correct answer, and no "
+    "incorrect one, was selected), and marks the attempt passed/failed against pass_score.",
+    examples=[
+        OpenApiExample(
+            "Submit",
+            value={"responses": [{"question_id": "c1d2e3f4-...", "answer_ids": ["d1e2f3a4-..."]}]},
+            request_only=True,
+        ),
+        OpenApiExample(
+            "Graded",
+            value={
+                "id": "f1e2d3c4-...",
+                "quiz": "b1c2d3e4-...",
+                "status": "submitted",
+                "started_at": "2026-02-01T10:00:00Z",
+                "submitted_at": "2026-02-01T10:05:00Z",
+                "score": 100.0,
+                "passed": True,
+            },
+            response_only=True,
+        ),
+    ],
 )
 class QuizSubmitView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -307,6 +547,17 @@ class QuizSubmitView(APIView):
     tags=["Student"],
     request=AssignmentSubmissionCreateSerializer,
     responses={201: AssignmentSubmissionSerializer, 200: AssignmentSubmissionSerializer},
+    description="Submits (or resubmits, before grading) an assignment for an enrolled "
+    "student. Returns 200 (not 201) when replacing an ungraded submission; fails with 400 if "
+    "the submission has already been graded.",
+    examples=[
+        OpenApiExample(
+            "Submit",
+            value={"content_ref": "https://github.com/student/final-project"},
+            request_only=True,
+        ),
+        OpenApiExample("Submitted", value=_ASSIGNMENT_SUBMISSION_EXAMPLE, response_only=True),
+    ],
 )
 class AssignmentSubmissionCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -347,7 +598,35 @@ class AssignmentSubmissionCreateView(APIView):
         )
 
 
-@extend_schema(tags=["Student"], responses={200: GradeEntrySerializer(many=True)})
+@extend_schema(
+    tags=["Student"],
+    responses={200: GradeEntrySerializer(many=True)},
+    description="Lists the current user's completed quiz attempts and graded assignment "
+    "submissions, combined into one grade list.",
+    examples=[
+        OpenApiExample(
+            "Grades",
+            value=[
+                {
+                    "type": "quiz",
+                    "id": "f1e2d3c4-...",
+                    "title": "Basics Quiz",
+                    "score": 100.0,
+                    "passed": True,
+                    "submitted_at": "2026-02-01T10:05:00Z",
+                },
+                {
+                    "type": "assignment",
+                    "id": "c3d4e5f6-...",
+                    "title": "Final Project",
+                    "grade": 92,
+                    "graded_at": "2026-02-01T09:00:00Z",
+                },
+            ],
+            response_only=True,
+        )
+    ],
+)
 class MyGradesView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -383,7 +662,24 @@ class MyGradesView(APIView):
 # ---------- Coding exercises (student) ----------
 
 
-@extend_schema(tags=["Student"], responses={200: CodingExerciseDetailSerializer})
+_CODING_EXERCISE_EXAMPLE = {
+    "id": "b2c3d4e5-...",
+    "title": "Reverse a string",
+    "prompt": "Write a function reverse(s) that returns s reversed.",
+    "starter_code": "def reverse(s):\n    ...\n",
+    "language": "python",
+    "time_limit_ms": 2000,
+    "memory_limit_mb": 128,
+}
+
+
+@extend_schema(
+    tags=["Student"],
+    responses={200: CodingExerciseDetailSerializer},
+    description="Gets a coding exercise's prompt, starter code, and constraints for an "
+    "enrolled student. Hidden test cases are never included.",
+    examples=[OpenApiExample("Exercise", value=_CODING_EXERCISE_EXAMPLE, response_only=True)],
+)
 class CodingExerciseDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -397,6 +693,29 @@ class CodingExerciseDetailView(APIView):
     tags=["Student"],
     request=CodingExerciseSubmissionCreateSerializer,
     responses={202: CodingExerciseSubmissionSerializer},
+    description="Submits source code for async judged execution (queued to Celery; poll "
+    "GET .../submissions/{id}/ for the result). Only Python is judged today — other languages "
+    "fail with 400.",
+    examples=[
+        OpenApiExample(
+            "Submit code",
+            value={"source_code": "def reverse(s):\n    return s[::-1]\n"},
+            request_only=True,
+        ),
+        OpenApiExample(
+            "Queued",
+            value={
+                "id": "e5f6a7b8-...",
+                "status": "pending",
+                "score": None,
+                "runtime_ms": None,
+                "results": None,
+                "submitted_at": "2026-02-01T11:00:00Z",
+                "graded_at": None,
+            },
+            response_only=True,
+        ),
+    ],
 )
 class CodingExerciseSubmissionCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -428,7 +747,27 @@ class CodingExerciseSubmissionCreateView(APIView):
         return Response(CodingExerciseSubmissionSerializer(submission).data, status=202)
 
 
-@extend_schema(tags=["Student"], responses={200: CodingExerciseSubmissionSerializer})
+@extend_schema(
+    tags=["Student"],
+    responses={200: CodingExerciseSubmissionSerializer},
+    description="Gets a coding submission's judged result — poll this after submitting until "
+    "status is no longer 'pending'.",
+    examples=[
+        OpenApiExample(
+            "Judged",
+            value={
+                "id": "e5f6a7b8-...",
+                "status": "passed",
+                "score": 100.0,
+                "runtime_ms": 12,
+                "results": [{"test_case": 1, "passed": True}],
+                "submitted_at": "2026-02-01T11:00:00Z",
+                "graded_at": "2026-02-01T11:00:05Z",
+            },
+            response_only=True,
+        )
+    ],
+)
 class CodingExerciseSubmissionDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

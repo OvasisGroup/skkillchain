@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -47,7 +47,21 @@ def _hosted_session_or_403(live_session_id, user):
 # ---------- Conferencing account connect/callback/list/revoke ----------
 
 
-@extend_schema(tags=["Instructor"], request=None, responses={200: ConnectResponseSerializer})
+@extend_schema(
+    tags=["Instructor"],
+    request=None,
+    responses={200: ConnectResponseSerializer},
+    description="Starts the OAuth connect flow for an instructor's Zoom or Google Meet "
+    "account: issues a signed state token and returns the provider's consent-screen URL to "
+    "redirect the browser to.",
+    examples=[
+        OpenApiExample(
+            "Authorization URL",
+            value={"authorization_url": "https://zoom.us/oauth/authorize?client_id=...&state=..."},
+            response_only=True,
+        )
+    ],
+)
 class ConferencingAccountConnectView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -60,7 +74,14 @@ class ConferencingAccountConnectView(APIView):
         return Response({"authorization_url": provider_adapter.authorization_url(state)})
 
 
-@extend_schema(tags=["Instructor"], request=None, responses={302: None})
+@extend_schema(
+    tags=["Instructor"],
+    request=None,
+    responses={302: None},
+    description="OAuth callback the provider redirects the instructor's browser to after "
+    "consent. Exchanges the authorization code for tokens, stores the connected account, and "
+    "redirects again to the frontend — not meant to be called directly by an API client.",
+)
 class ConferencingAccountCallbackView(APIView):
     """
     Hit by the *browser*, redirected here by the provider after consent —
@@ -127,7 +148,23 @@ class ConferencingAccountCallbackView(APIView):
         )
 
 
-@extend_schema(tags=["Instructor"])
+@extend_schema(
+    tags=["Instructor"],
+    description="Lists the current instructor's connected (non-revoked) conferencing accounts.",
+    examples=[
+        OpenApiExample(
+            "Account",
+            value={
+                "id": "e5f6a7b8-...",
+                "provider": "zoom",
+                "external_account_id": "user@example.com",
+                "connected_at": "2026-01-05T10:00:00Z",
+                "revoked_at": None,
+            },
+            response_only=True,
+        )
+    ],
+)
 class ConferencingAccountListView(generics.ListAPIView):
     serializer_class = ConferencingAccountSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -137,7 +174,11 @@ class ConferencingAccountListView(generics.ListAPIView):
         return ConferencingAccount.objects.filter(user=self.request.user, revoked_at__isnull=True)
 
 
-@extend_schema(tags=["Instructor"], responses={204: None})
+@extend_schema(
+    tags=["Instructor"],
+    responses={204: None},
+    description="Disconnects a conferencing account and revokes its stored tokens.",
+)
 class ConferencingAccountRevokeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -158,8 +199,45 @@ class ConferencingAccountRevokeView(APIView):
 # ---------- Live session scheduling (instructor) ----------
 
 
+_LIVE_SESSION_EXAMPLE = {
+    "id": "f9e8d7c6-...",
+    "course": "1c2d3e4f-...",
+    "provider": "zoom",
+    "title": "Live Q&A: Week 1",
+    "description": "Open Q&A covering syntax and setup.",
+    "scheduled_start_at": "2026-02-01T18:00:00Z",
+    "scheduled_end_at": "2026-02-01T19:00:00Z",
+    "timezone": "UTC",
+    "status": "scheduled",
+    "capacity": 100,
+    "is_recorded": True,
+}
+
+
 @extend_schema(
-    tags=["Instructor"], request=LiveSessionCreateSerializer, responses={201: LiveSessionSerializer}
+    tags=["Instructor"],
+    request=LiveSessionCreateSerializer,
+    responses={201: LiveSessionSerializer},
+    description="Schedules a live session for a course the current instructor owns, creating "
+    "the meeting on the connected conferencing provider (Zoom/Google Meet).",
+    examples=[
+        OpenApiExample(
+            "Schedule session",
+            value={
+                "conferencing_account_id": "e5f6a7b8-...",
+                "provider": "zoom",
+                "title": "Live Q&A: Week 1",
+                "description": "Open Q&A covering syntax and setup.",
+                "scheduled_start_at": "2026-02-01T18:00:00Z",
+                "scheduled_end_at": "2026-02-01T19:00:00Z",
+                "timezone": "UTC",
+                "capacity": 100,
+                "is_recorded": True,
+            },
+            request_only=True,
+        ),
+        OpenApiExample("Scheduled", value=_LIVE_SESSION_EXAMPLE, response_only=True),
+    ],
 )
 class LiveSessionScheduleView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -220,7 +298,22 @@ class LiveSessionScheduleView(APIView):
 
 
 @extend_schema(
-    tags=["Instructor"], request=LiveSessionUpdateSerializer, responses={200: LiveSessionSerializer}
+    tags=["Instructor"],
+    request=LiveSessionUpdateSerializer,
+    responses={200: LiveSessionSerializer},
+    description="Reschedules or edits a live session the current instructor hosts. Only "
+    "allowed while the session is still scheduled (not started/canceled).",
+    examples=[
+        OpenApiExample(
+            "Reschedule",
+            value={
+                "scheduled_start_at": "2026-02-02T18:00:00Z",
+                "scheduled_end_at": "2026-02-02T19:00:00Z",
+            },
+            request_only=True,
+        ),
+        OpenApiExample("Updated", value=_LIVE_SESSION_EXAMPLE, response_only=True),
+    ],
 )
 class LiveSessionUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -243,7 +336,19 @@ class LiveSessionUpdateView(APIView):
         return Response(LiveSessionSerializer(live_session).data)
 
 
-@extend_schema(tags=["Instructor"], request=None, responses={200: LiveSessionSerializer})
+@extend_schema(
+    tags=["Instructor"],
+    request=None,
+    responses={200: LiveSessionSerializer},
+    description="Cancels a live session the current instructor hosts, best-effort canceling "
+    "the meeting with the conferencing provider too (a provider-side failure still cancels "
+    "locally, but is recorded as a distinct audit event).",
+    examples=[
+        OpenApiExample(
+            "Canceled", value={**_LIVE_SESSION_EXAMPLE, "status": "canceled"}, response_only=True
+        )
+    ],
+)
 class LiveSessionCancelView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -281,7 +386,25 @@ class LiveSessionCancelView(APIView):
         return Response(LiveSessionSerializer(live_session).data)
 
 
-@extend_schema(tags=["Instructor"])
+@extend_schema(
+    tags=["Instructor"],
+    description="Lists registrations for a live session the current instructor hosts.",
+    examples=[
+        OpenApiExample(
+            "Registration",
+            value={
+                "id": "a2b3c4d5-...",
+                "student_email": "student@example.com",
+                "status": "registered",
+                "registered_at": "2026-01-25T09:00:00Z",
+                "joined_at": None,
+                "left_at": None,
+                "attended_duration_seconds": 0,
+            },
+            response_only=True,
+        )
+    ],
+)
 class LiveSessionRegistrationsView(generics.ListAPIView):
     serializer_class = RegistrationSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -295,7 +418,12 @@ class LiveSessionRegistrationsView(generics.ListAPIView):
 # ---------- Live session discovery, registration, join (student) ----------
 
 
-@extend_schema(tags=["Student"])
+@extend_schema(
+    tags=["Student"],
+    description="Lists non-canceled live sessions scheduled for a published course. Public — "
+    "no enrollment required to browse the schedule.",
+    examples=[OpenApiExample("Live session", value=_LIVE_SESSION_EXAMPLE, response_only=True)],
+)
 class CourseLiveSessionsView(generics.ListAPIView):
     serializer_class = LiveSessionSerializer
     permission_classes = [permissions.AllowAny]
@@ -307,7 +435,11 @@ class CourseLiveSessionsView(generics.ListAPIView):
         )
 
 
-@extend_schema(tags=["Student"])
+@extend_schema(
+    tags=["Student"],
+    description="Lists live sessions the current user is registered for or has attended.",
+    examples=[OpenApiExample("Live session", value=_LIVE_SESSION_EXAMPLE, response_only=True)],
+)
 class MyLiveSessionsView(generics.ListAPIView):
     serializer_class = LiveSessionSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -323,10 +455,17 @@ class MyLiveSessionsView(generics.ListAPIView):
         ).distinct()
 
 
-@extend_schema(tags=["Student"], request=None, responses={201: None, 200: None})
 class LiveSessionRegisterView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        tags=["Student"],
+        request=None,
+        responses={201: None, 200: None},
+        description="Registers the current user for a live session (enrollment in the "
+        "session's course is required, if it belongs to one). Returns 200 (not 201) if already "
+        "registered. Fails with 400 if the session is canceled or at capacity.",
+    )
     def post(self, request, id):
         live_session = get_object_or_404(LiveSession, pk=id)
         if live_session.status == LiveSession.STATUS_CANCELED:
@@ -365,6 +504,11 @@ class LiveSessionRegisterView(APIView):
             )
         return Response(status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
+    @extend_schema(
+        tags=["Student"],
+        responses={204: None},
+        description="Cancels the current user's registration for a live session.",
+    )
     def delete(self, request, id):
         registration = LiveSessionRegistration.objects.filter(
             live_session_id=id, student=request.user
@@ -376,7 +520,20 @@ class LiveSessionRegisterView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(tags=["Student"], responses={200: JoinResponseSerializer})
+@extend_schema(
+    tags=["Student"],
+    responses={200: JoinResponseSerializer},
+    description="Gets the join URL for a live session — only within the join window (a few "
+    "minutes before start through session end) and only for registered attendees. The join "
+    "URL is never handed out otherwise; enforced server-side, not left to the client.",
+    examples=[
+        OpenApiExample(
+            "Join URL",
+            value={"join_url": "https://zoom.us/j/1234567890?pwd=..."},
+            response_only=True,
+        )
+    ],
+)
 class LiveSessionJoinView(APIView):
     """
     The security-critical endpoint of this milestone: a join URL is never
@@ -425,7 +582,23 @@ class LiveSessionJoinView(APIView):
         return Response({"join_url": live_session.join_url})
 
 
-@extend_schema(tags=["Student"], responses={200: RecordingSerializer})
+@extend_schema(
+    tags=["Student"],
+    responses={200: RecordingSerializer},
+    description="Gets the recording for a live session the current user hosted or attended. "
+    "404 if the session wasn't recorded or the recording isn't ready yet.",
+    examples=[
+        OpenApiExample(
+            "Recording",
+            value={
+                "playback_url": "https://cdn.example.com/recordings/f9e8d7c6.mp4",
+                "duration_seconds": 3540,
+                "available_at": "2026-02-01T20:00:00Z",
+            },
+            response_only=True,
+        )
+    ],
+)
 class LiveSessionRecordingView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
