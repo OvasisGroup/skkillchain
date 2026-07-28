@@ -1,4 +1,4 @@
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -9,6 +9,15 @@ from . import services
 from .models import Setting
 from .serializers import SettingSerializer, SettingUpsertSerializer
 
+_SETTING_EXAMPLE = {
+    "id": "f1e2d3c4-...",
+    "scope_type": "platform",
+    "scope_id": None,
+    "key": "maintenance_mode",
+    "value_json": False,
+    "updated_at": "2026-01-01T00:00:00Z",
+}
+
 
 @extend_schema(tags=["Admin"])
 class AdminSettingsView(APIView):
@@ -16,11 +25,35 @@ class AdminSettingsView(APIView):
     required_permission = "settings.manage"
     throttle_scope = "admin-write"
 
-    @extend_schema(responses={200: SettingSerializer(many=True)})
+    @extend_schema(
+        responses={200: SettingSerializer(many=True)},
+        description="Lists all platform/scoped settings.",
+        examples=[OpenApiExample("Setting", value=_SETTING_EXAMPLE, response_only=True)],
+    )
     def get(self, request):
         return Response(SettingSerializer(Setting.objects.all(), many=True).data)
 
-    @extend_schema(request=SettingUpsertSerializer, responses={200: SettingSerializer})
+    @extend_schema(
+        request=SettingUpsertSerializer,
+        responses={200: SettingSerializer},
+        description="Creates or updates a setting by (scope_type, scope_id, key).",
+        examples=[
+            OpenApiExample(
+                "Update setting",
+                value={
+                    "scope_type": "platform",
+                    "key": "maintenance_mode",
+                    "value_json": True,
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Updated",
+                value={**_SETTING_EXAMPLE, "value_json": True},
+                response_only=True,
+            ),
+        ],
+    )
     def patch(self, request):
         serializer = SettingUpsertSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
