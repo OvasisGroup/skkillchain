@@ -230,23 +230,61 @@ verified live.
 
 ---
 
-### M5 — Assessments: Quizzes, Assignments, Coding Exercises
+### M5 — Assessments: Quizzes, Assignments, Coding Exercises — done, with an honest sandbox caveat
 **Sprint 6** · Apps: `assessments`
 **Requirements**: FR-LRN-004
 
-- `quizzes`/`questions`/`answers` with attempt-limit and pass-score enforcement server-side.
-- `assignments`/`assignment_submissions` with instructor grading endpoints.
-- `coding_exercises`/`coding_exercise_test_cases`/`coding_exercise_submissions`: submissions run
-  in an isolated, resource-limited sandbox (ephemeral container or third-party judge API — never
-  `exec()` untrusted code in-process), dispatched via Celery so grading never blocks the request.
+**Built and verified end-to-end** (nested authoring → attempt → grade, over real HTTP; coding
+judging over a real Celery worker consuming from real RabbitMQ):
+- `Quiz`/`Question`/`Answer`: instructor authoring is a single nested-create call (a quiz without
+  questions, or a question without a marked-correct answer, is rejected server-side — not just a
+  client-side validation). `QuizAttempt`/`QuizResponse` track attempts; `attempts_allowed` is
+  enforced against *finished* attempts (a DB-level partial unique constraint additionally
+  guarantees only one `in_progress` attempt per student per quiz). Grading treats
+  single-choice and multiple-choice uniformly — a response is correct iff the selected answer
+  set exactly equals the correct-answer set — verified with a case that selects only one of two
+  required multiple-choice answers and confirms it scores as incorrect. `AnswerOptionSerializer`
+  never includes `is_correct` on any read path a student can hit, verified in tests and live (a
+  quiz detail response was inspected directly for the string `is_correct` and found absent).
+- `Assignment`/`AssignmentSubmission`: resubmission before grading updates the existing row
+  (no duplicate-submission spam); resubmission after grading is rejected. Grading is
+  instructor/owner-only (403 for both a student and a non-owning instructor), records
+  `graded_by`/`graded_at`, and appears in `GET /students/me/grades/` alongside submitted quiz
+  attempts.
+- `CodingExercise`/`CodingExerciseTestCase`/`CodingExerciseSubmission`: submission creation
+  returns `202` immediately and dispatches `assessments.judge_coding_submission` via Celery — a
+  real submission was posted over real HTTP, graded by a real worker process consuming from real
+  RabbitMQ, and polled back as `passed` with a `100.0` score, cross-checked against the worker's
+  own log for the exact task ID (same discipline as the M4 Celery verification). Hidden test
+  cases' `expected_output` and the submission's actual stdout/stderr for those cases are never
+  included in `result_detail` — only `{is_hidden: true, passed: bool}` — verified in both a unit
+  test and the live run. Judging is scoped to Python 3 only today; a submission against an
+  exercise with any other `language` value is rejected at creation with a clear "not implemented
+  yet" error rather than silently queuing something that can never grade.
 
-**Security checklist**: the coding-exercise sandbox has no network access and hard CPU/memory/
-time limits; this is a genuine remote-code-execution surface and gets its own threat-model
-review before launch, not just a code review.
+**Security checklist — sandbox isolation is honestly incomplete, not silently assumed**:
+`apps/assessments/judge.py` runs submissions as a real `python3` subprocess bounded by a
+wall-clock timeout (reliable cross-platform) and `resource.setrlimit` CPU/memory limits
+(POSIX, best-effort — each limit is set independently so a platform that can't honor one, e.g.
+macOS's unreliable `RLIMIT_AS`, degrades gracefully instead of crashing the judge). **It does
+NOT provide filesystem or network isolation** — a submission can still read any file the
+process's OS user can read or open a socket. This is documented loudly in the module docstring
+and is a known, deliberate limitation, not an oversight: real isolation needs a locked-down
+container (gVisor/Kata), a Firecracker microVM, or a hosted judge API (e.g. Judge0), none of
+which are part of this milestone. Consequently the originally-stated exit criterion "a
+submission attempting to read `/etc/passwd` or open a socket fails safely" is **not met** by
+this implementation and must not be treated as met — a genuine threat-model review and a real
+sandbox are required before this endpoint is exposed to untrusted users in production. What
+*is* verified: CPU-bound infinite loops are killed at the timeout (tested), syntax/runtime
+errors are caught and graded as `error` rather than crashing the worker (tested), and the
+memory-limit test is explicitly skipped on macOS with a documented reason rather than asserting
+behavior that doesn't hold on this platform.
 
-**Exit criteria**: a quiz attempt is scored correctly against `pass_score`; a coding submission
-is judged asynchronously and returns per-test-case pass/fail; a submission attempting to read
-`/etc/passwd` or open a socket fails safely inside the sandbox.
+**Exit criteria**: met for grading correctness — a quiz attempt is scored correctly against
+`pass_score`, both over the test suite and live HTTP; a coding submission is judged
+asynchronously via a real Celery worker and returns per-test-case pass/fail. **Not met** for
+sandbox isolation, per the security checklist above — carried forward as a blocker before any
+production launch of the coding-exercise feature, not silently dropped.
 
 ---
 

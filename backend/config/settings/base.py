@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.content",
     "apps.learning",
     "apps.live_sessions",
+    "apps.assessments",
     "shared.health",
 ]
 
@@ -209,6 +210,8 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "CourseStatusEnum": "apps.catalog.models.Course.STATUS_CHOICES",
         "EnrollmentStatusEnum": "apps.learning.models.Enrollment.STATUS_CHOICES",
+        "QuestionTypeEnum": "apps.assessments.models.Question.TYPE_CHOICES",
+        "GradeEntryTypeEnum": "apps.assessments.serializers.GRADE_ENTRY_TYPE_CHOICES",
     },
 }
 
