@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import AuthenticationFailed, NotFound
 from rest_framework.response import Response
@@ -45,7 +45,36 @@ def _user_has_confirmed_mfa(user) -> bool:
     return MFAFactor.objects.filter(user=user, confirmed_at__isnull=False).exists()
 
 
-@extend_schema(tags=["Auth"])
+@extend_schema(
+    tags=["Auth"],
+    description="Creates a new user account with an email and password. The email must not "
+    "already be registered; the password is checked against Django's configured password "
+    "validators.",
+    examples=[
+        OpenApiExample(
+            "Register",
+            value={"email": "student@example.com", "password": "correct-horse-battery-staple"},
+            request_only=True,
+        ),
+        OpenApiExample(
+            "Registered",
+            value={
+                "id": "b6a5b6c0-9b1e-4c9a-9b7a-1f2e3d4c5b6a",
+                "email": "student@example.com",
+                "is_active": True,
+                "created_at": "2026-01-15T09:00:00Z",
+                "profile": {
+                    "first_name": "",
+                    "last_name": "",
+                    "avatar_url": "",
+                    "locale": "en",
+                    "timezone": "UTC",
+                },
+            },
+            response_only=True,
+        ),
+    ],
+)
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
@@ -65,7 +94,30 @@ class RegisterView(generics.CreateAPIView):
 
 
 @extend_schema(
-    tags=["Auth"], responses={200: TokenPairSerializer, 202: MFALoginChallengeSerializer}
+    tags=["Auth"],
+    responses={200: TokenPairSerializer, 202: MFALoginChallengeSerializer},
+    description="Authenticates with email and password. If the account has a confirmed MFA "
+    "factor, returns a 202 challenge instead of tokens — complete the login via "
+    "POST /auth/mfa/login-verify with the returned mfa_token.",
+    examples=[
+        OpenApiExample(
+            "Login",
+            value={"email": "student@example.com", "password": "correct-horse-battery-staple"},
+            request_only=True,
+        ),
+        OpenApiExample(
+            "Tokens issued (no MFA)",
+            value={"access": "eyJhbGciOi...", "refresh": "eyJhbGciOi..."},
+            response_only=True,
+            status_codes=["200"],
+        ),
+        OpenApiExample(
+            "MFA challenge issued",
+            value={"mfa_required": True, "mfa_token": "eyJhbGciOi..."},
+            response_only=True,
+            status_codes=["202"],
+        ),
+    ],
 )
 class LoginView(TokenObtainPairView):
     # simplejwt's stub pins this to the literal empty-tuple type, not just
@@ -98,12 +150,26 @@ class LoginView(TokenObtainPairView):
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
-@extend_schema(tags=["Auth"])
+@extend_schema(
+    tags=["Auth"],
+    description="Exchanges a refresh token for a new access token.",
+    examples=[
+        OpenApiExample("Refresh", value={"refresh": "eyJhbGciOi..."}, request_only=True),
+        OpenApiExample("New access token", value={"access": "eyJhbGciOi..."}, response_only=True),
+    ],
+)
 class TokenRefreshView(SimpleJWTTokenRefreshView):
     pass
 
 
-@extend_schema(tags=["Auth"], request=LogoutSerializer, responses={204: None})
+@extend_schema(
+    tags=["Auth"],
+    request=LogoutSerializer,
+    responses={204: None},
+    description="Blacklists a refresh token, ending the session it belongs to. The access "
+    "token it was paired with remains valid until it naturally expires.",
+    examples=[OpenApiExample("Logout", value={"refresh": "eyJhbGciOi..."}, request_only=True)],
+)
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -131,7 +197,43 @@ class LogoutView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(tags=["Auth"])
+_ME_EXAMPLE = {
+    "id": "b6a5b6c0-9b1e-4c9a-9b7a-1f2e3d4c5b6a",
+    "email": "student@example.com",
+    "is_active": True,
+    "created_at": "2026-01-15T09:00:00Z",
+    "profile": {
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+        "avatar_url": "",
+        "locale": "en",
+        "timezone": "UTC",
+    },
+}
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Auth"],
+        description="Returns the authenticated user's own profile.",
+        examples=[OpenApiExample("Current user", value=_ME_EXAMPLE, response_only=True)],
+    ),
+    patch=extend_schema(
+        tags=["Auth"],
+        description="Partially updates the authenticated user's profile fields.",
+        examples=[
+            OpenApiExample(
+                "Update name", value={"profile": {"first_name": "Ada"}}, request_only=True
+            ),
+            OpenApiExample("Updated", value=_ME_EXAMPLE, response_only=True),
+        ],
+    ),
+    put=extend_schema(
+        tags=["Auth"],
+        description="Replaces the authenticated user's profile fields.",
+        examples=[OpenApiExample("Updated", value=_ME_EXAMPLE, response_only=True)],
+    ),
+)
 class MeView(generics.RetrieveUpdateAPIView):
     serializer_class = MeSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -140,7 +242,22 @@ class MeView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
-@extend_schema(tags=["Auth"], request=OAuthTokenSerializer, responses={200: TokenPairSerializer})
+@extend_schema(
+    tags=["Auth"],
+    request=OAuthTokenSerializer,
+    responses={200: TokenPairSerializer},
+    description="Verifies a provider-issued token (Google ID token, Sign in with Apple, "
+    "Facebook access token) and logs in, creating a new account on first sign-in if no "
+    "matching account exists.",
+    examples=[
+        OpenApiExample("Google token", value={"token": "eyJhbGciOi..."}, request_only=True),
+        OpenApiExample(
+            "Tokens issued",
+            value={"access": "eyJhbGciOi...", "refresh": "eyJhbGciOi..."},
+            response_only=True,
+        ),
+    ],
+)
 class OAuthLoginView(APIView):
     """
     Verifies a provider-issued token (the client does the OAuth dance with
@@ -209,7 +326,24 @@ class OAuthLoginView(APIView):
         return _token_pair_response(user)
 
 
-@extend_schema(tags=["Auth"], request=None, responses={201: MFAEnrollResponseSerializer})
+@extend_schema(
+    tags=["Auth"],
+    request=None,
+    responses={201: MFAEnrollResponseSerializer},
+    description="Starts (or restarts) TOTP enrollment, returning a provisioning URI and raw "
+    "secret. Confirm it via POST /auth/mfa/verify with a code generated from either.",
+    examples=[
+        OpenApiExample(
+            "Enrollment started",
+            value={
+                "provisioning_uri": "otpauth://totp/SkillChain:student@example.com?secret="
+                "JBSWY3DPEHPK3PXP&issuer=SkillChain",
+                "secret": "JBSWY3DPEHPK3PXP",
+            },
+            response_only=True,
+        )
+    ],
+)
 class MFAEnrollView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -232,7 +366,17 @@ class MFAEnrollView(APIView):
 
 
 @extend_schema(
-    tags=["Auth"], request=MFAVerifySerializer, responses={200: MFAStatusResponseSerializer}
+    tags=["Auth"],
+    request=MFAVerifySerializer,
+    responses={200: MFAStatusResponseSerializer},
+    description="Confirms a factor enrolled via /auth/mfa/enroll with a 6-digit TOTP code. For "
+    "completing an MFA-gated login, use POST /auth/mfa/login-verify instead — that one doesn't "
+    "require an existing session, since proving the second factor is how the session gets "
+    "established.",
+    examples=[
+        OpenApiExample("Code", value={"code": "123456"}, request_only=True),
+        OpenApiExample("Confirmed", value={"status": "confirmed"}, response_only=True),
+    ],
 )
 class MFAVerifyView(APIView):
     """Confirms a factor enrolled via /auth/mfa/enroll. For completing an
@@ -280,7 +424,23 @@ class MFAVerifyView(APIView):
 
 
 @extend_schema(
-    tags=["Auth"], request=MFALoginVerifySerializer, responses={200: TokenPairSerializer}
+    tags=["Auth"],
+    request=MFALoginVerifySerializer,
+    responses={200: TokenPairSerializer},
+    description="Completes an MFA-gated login by proving the second factor: the mfa_token "
+    "from the 202 challenge returned by POST /auth/login, plus a current 6-digit TOTP code.",
+    examples=[
+        OpenApiExample(
+            "Verify",
+            value={"mfa_token": "eyJhbGciOi...", "code": "123456"},
+            request_only=True,
+        ),
+        OpenApiExample(
+            "Tokens issued",
+            value={"access": "eyJhbGciOi...", "refresh": "eyJhbGciOi..."},
+            response_only=True,
+        ),
+    ],
 )
 class MFALoginVerifyView(APIView):
     permission_classes = [permissions.AllowAny]

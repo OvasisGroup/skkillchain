@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -25,7 +25,31 @@ def _editable_or_400(course):
         )
 
 
-@extend_schema(tags=["Instructor"])
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Instructor"],
+        description="Lists sections for a course the current instructor owns.",
+        examples=[
+            OpenApiExample(
+                "Section",
+                value={"id": "c1d2e3f4-...", "title": "Getting Started", "sort_order": 1},
+                response_only=True,
+            )
+        ],
+    ),
+    post=extend_schema(
+        tags=["Instructor"],
+        description="Creates a section within a course the current instructor owns. Only "
+        "allowed while the course is draft or rejected.",
+        examples=[
+            OpenApiExample(
+                "Create section",
+                value={"title": "Getting Started", "sort_order": 1},
+                request_only=True,
+            )
+        ],
+    ),
+)
 class InstructorSectionCreateView(generics.ListCreateAPIView):
     serializer_class = SectionWriteSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -48,7 +72,45 @@ class InstructorSectionCreateView(generics.ListCreateAPIView):
         )
 
 
-@extend_schema(tags=["Instructor"])
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Instructor"],
+        description="Lists lessons within a section belonging to a course the current "
+        "instructor owns.",
+        examples=[
+            OpenApiExample(
+                "Lesson",
+                value={
+                    "id": "d1e2f3a4-...",
+                    "title": "Welcome",
+                    "lesson_type": "video",
+                    "sort_order": 1,
+                    "duration_seconds": 180,
+                    "is_preview": True,
+                },
+                response_only=True,
+            )
+        ],
+    ),
+    post=extend_schema(
+        tags=["Instructor"],
+        description="Creates a lesson within a section belonging to a course the current "
+        "instructor owns. Only allowed while the course is draft or rejected.",
+        examples=[
+            OpenApiExample(
+                "Create lesson",
+                value={
+                    "title": "Welcome",
+                    "lesson_type": "video",
+                    "sort_order": 1,
+                    "duration_seconds": 180,
+                    "is_preview": True,
+                },
+                request_only=True,
+            )
+        ],
+    ),
+)
 class InstructorLessonCreateView(generics.ListCreateAPIView):
     serializer_class = LessonWriteSerializer
     permission_classes = [permissions.IsAuthenticated]

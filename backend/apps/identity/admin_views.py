@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,8 +10,22 @@ from apps.authorization.permissions import HasPermission
 from .admin_serializers import AdminUserSerializer, AdminUserStatusUpdateSerializer
 from .models import User
 
+_ADMIN_USER_EXAMPLE = {
+    "id": "b6a5b6c0-9b1e-4c9a-9b7a-1f2e3d4c5b6a",
+    "email": "student@example.com",
+    "is_active": True,
+    "created_at": "2026-01-15T09:00:00Z",
+}
 
-@extend_schema(tags=["Admin"])
+
+@extend_schema(
+    tags=["Admin"],
+    parameters=[
+        OpenApiParameter("email", str, description="Case-insensitive substring filter on email.")
+    ],
+    description="Lists platform users, optionally filtered by an email substring.",
+    examples=[OpenApiExample("User", value=_ADMIN_USER_EXAMPLE, response_only=True)],
+)
 class AdminUserListView(generics.ListAPIView):
     serializer_class = AdminUserSerializer
     permission_classes = [HasPermission]
@@ -26,7 +40,18 @@ class AdminUserListView(generics.ListAPIView):
 
 
 @extend_schema(
-    tags=["Admin"], request=AdminUserStatusUpdateSerializer, responses={200: AdminUserSerializer}
+    tags=["Admin"],
+    request=AdminUserStatusUpdateSerializer,
+    responses={200: AdminUserSerializer},
+    description="Suspends or reinstates a user account by toggling is_active.",
+    examples=[
+        OpenApiExample("Suspend", value={"is_active": False}, request_only=True),
+        OpenApiExample(
+            "Suspended",
+            value={**_ADMIN_USER_EXAMPLE, "is_active": False},
+            response_only=True,
+        ),
+    ],
 )
 class AdminUserStatusUpdateView(APIView):
     permission_classes = [HasPermission]
