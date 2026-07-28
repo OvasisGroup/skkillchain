@@ -64,6 +64,9 @@ class InstructorQuizCreateView(APIView):
         course = _owned_course_or_403(course_id, request.user)
         serializer = QuizCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        section = serializer.validated_data.get("section")
+        if section is not None and section.course_id != course.id:
+            raise ValidationError("section must belong to the same course as this quiz.")
         quiz = serializer.save(course=course)
         record_event(
             actor=request.user,

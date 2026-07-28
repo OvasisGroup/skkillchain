@@ -31,6 +31,7 @@ class InstructorSectionCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        _owned_course_or_403(self.kwargs["course_id"], self.request.user)
         return Section.objects.filter(course_id=self.kwargs["course_id"])
 
     def perform_create(self, serializer):
@@ -53,6 +54,8 @@ class InstructorLessonCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        section = get_object_or_404(Section, pk=self.kwargs["section_id"])
+        _owned_course_or_403(section.course_id, self.request.user)
         return Lesson.objects.filter(section_id=self.kwargs["section_id"])
 
     def perform_create(self, serializer):

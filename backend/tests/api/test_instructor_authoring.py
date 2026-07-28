@@ -200,6 +200,31 @@ class TestSectionAndLessonAuthoring:
 
         assert response.status_code == 403
 
+    def test_non_owner_cannot_list_sections(self, api_client, instructor, other_instructor):
+        # IDOR check: get_queryset() must ownership-gate the list path too,
+        # not just perform_create() — a course's curriculum structure
+        # (including unpublished/draft courses CourseDetailView otherwise
+        # hides) must not be enumerable by any authenticated user.
+        course = Course.objects.create(owner=instructor, title="Not Yours")
+        Section.objects.create(course=course, title="Secret Section")
+        api_client.force_authenticate(user=other_instructor)
+
+        response = api_client.get(f"/api/v1/instructor/courses/{course.id}/sections/")
+
+        assert response.status_code == 403
+
+    def test_non_owner_cannot_list_lessons(self, api_client, instructor, other_instructor):
+        from apps.content.models import Lesson
+
+        course = Course.objects.create(owner=instructor, title="Not Yours Either")
+        section = Section.objects.create(course=course, title="Section")
+        Lesson.objects.create(section=section, title="Secret Lesson")
+        api_client.force_authenticate(user=other_instructor)
+
+        response = api_client.get(f"/api/v1/instructor/sections/{section.id}/lessons/")
+
+        assert response.status_code == 403
+
     def test_cannot_add_section_once_submitted(self, auth_client, instructor):
         course = Course.objects.create(owner=instructor, title="Locked")
         course.submit_for_review()

@@ -113,6 +113,21 @@ class TestInstructorQuizCreate:
 
         assert response.status_code == 403
 
+    def test_section_must_belong_to_the_same_course(self, instructor_client, instructor, course):
+        from apps.catalog.models import Course
+        from apps.content.models import Section
+
+        other_course = Course.objects.create(owner=instructor, title="Other Course")
+        other_section = Section.objects.create(course=other_course, title="Foreign Section")
+
+        response = instructor_client.post(
+            f"/api/v1/instructor/courses/{course.id}/quizzes/",
+            {"title": "Cross-linked Quiz", "section": str(other_section.id)},
+            format="json",
+        )
+
+        assert response.status_code == 400
+
 
 class TestQuizDetail:
     def test_detail_hides_is_correct(self, student_client, enrolled_student, quiz):

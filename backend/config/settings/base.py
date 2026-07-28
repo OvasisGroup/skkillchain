@@ -258,6 +258,11 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
+    # Explicit, not relied on as simplejwt's library default (currently
+    # HS256) — pinning it here means a future simplejwt default change
+    # can't silently alter what algorithm this app accepts (M11 security
+    # review; also forecloses any "alg" confusion class of attack).
+    "ALGORITHM": "HS256",
 }
 
 SPECTACULAR_SETTINGS = {
