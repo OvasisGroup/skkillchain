@@ -30,6 +30,7 @@ dependencies = [
     # some platforms, forcing a Rust build that isn't guaranteed to
     # succeed everywhere this installs. 5.9.0 has a universal wheel.
     "cbor2==5.9.0",
+    "anthropic>=0.40,<0.50",
 ]
 
 [project.optional-dependencies]

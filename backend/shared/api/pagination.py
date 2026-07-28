@@ -26,3 +26,9 @@ class IssuedAtCursorPagination(DefaultCursorPagination):
     """For models with `issued_at` instead of `created_at` (Certificate)."""
 
     ordering = "-issued_at"
+
+
+class StartedAtCursorPagination(DefaultCursorPagination):
+    """For models with `started_at` instead of `created_at` (AiChatSession)."""
+
+    ordering = "-started_at"

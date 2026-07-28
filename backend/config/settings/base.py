@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.reviews",
     "apps.support",
+    "apps.ai",
     "shared.health",
 ]
 
@@ -207,6 +208,10 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "auth-login": "10/min",
         "auth-mfa": "10/min",
+        # Per-user/day caps on AI endpoints (M8 security checklist — bound
+        # cost exposure on calls that hit a real, metered LLM API).
+        "ai-chat": "60/day",
+        "ai-generation": "20/day",
     },
 }
 
@@ -321,3 +326,15 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@skillchain.exam
 # behind them, pending an actual vendor decision (e.g. Twilio, FCM) — same
 # "identify but don't fake a send" precedent as
 # apps/live_sessions/tasks.py's dispatch_reminders before this milestone.
+
+# AI-assisted learning (M8) — real Anthropic Claude integration, unlike the
+# SMS/push stubs above, per an explicit choice to wire a real LLM rather
+# than a stub. Sonnet, not Opus: this is a cost-metered production feature
+# with per-user/day rate limits (see DEFAULT_THROTTLE_RATES above), not a
+# one-off hard-reasoning task — Sonnet is the documented high-volume
+# production pick. Empty default means calling out fails loudly with a
+# clear AIProviderError (apps/ai/anthropic_client.py) rather than a silent
+# no-op, same "safe default, override via env" pattern as STRIPE_SECRET_KEY.
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+AI_CHAT_MODEL = env("AI_CHAT_MODEL", default="claude-sonnet-5")
+AI_GENERATION_MODEL = env("AI_GENERATION_MODEL", default="claude-sonnet-5")
