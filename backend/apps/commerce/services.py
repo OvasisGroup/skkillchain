@@ -6,10 +6,11 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from apps.affiliates.models import AffiliateAccount, AffiliateCommission, AffiliateReferral
 from apps.billing.models import Plan, Subscription
 from apps.catalog.models import Course
 from apps.learning.models import Enrollment
-from apps.payouts.services import credit_instructor_wallet
+from apps.payouts.services import credit_affiliate_wallet, credit_instructor_wallet
 
 from .models import (
     Coupon,
@@ -150,6 +151,18 @@ def _generate_invoice_number() -> str:
     return f"INV-{uuid.uuid4().hex[:10].upper()}"
 
 
+def capture_referral(order: Order, referral_code: str, buyer) -> None:
+    """Best-effort: an unknown or self-referral code just doesn't
+    attribute a referral — it never blocks checkout, since the code is
+    incidental to the purchase the buyer actually wants."""
+    affiliate = AffiliateAccount.objects.filter(referral_code=referral_code).first()
+    if affiliate is None or affiliate.user_id == buyer.id:
+        return
+    AffiliateReferral.objects.get_or_create(
+        order=order, defaults={"affiliate": affiliate, "referred_user": buyer}
+    )
+
+
 @transaction.atomic
 def finalize_order_payment(order: Order) -> None:
     """
@@ -212,3 +225,30 @@ def finalize_order_payment(order: Order) -> None:
             status=Subscription.STATUS_ACTIVE,
             defaults={"renews_at": timezone.now() + plan.interval_timedelta},
         )
+
+    referral = AffiliateReferral.objects.filter(
+        order=order, status=AffiliateReferral.STATUS_PENDING
+    ).first()
+    if referral is not None and order.subtotal_amount > 0:
+        # Based on subtotal (gross item price), not total_amount — same
+        # basis as the instructor revenue-share above, which also credits
+        # from item.unit_price regardless of any gift-card/coupon
+        # reduction. A gift-card-covered sale still counts as a
+        # successful referral; the gift card's own balance was itself
+        # funded with real money at some earlier point.
+        commission_amount = order.subtotal_amount * (
+            referral.affiliate.commission_rate / Decimal("100")
+        )
+        AffiliateCommission.objects.get_or_create(
+            referral=referral, defaults={"commission_amount": commission_amount}
+        )
+        credit_affiliate_wallet(
+            referral.affiliate.user_id,
+            amount=commission_amount,
+            currency=order.currency,
+            reason="affiliate_commission",
+            reference_type="Order",
+            reference_id=order.id,
+        )
+        referral.status = AffiliateReferral.STATUS_CONVERTED
+        referral.save(update_fields=["status"])

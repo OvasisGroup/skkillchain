@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.billing",
     "apps.commerce",
     "apps.payouts",
+    "apps.affiliates",
     "shared.health",
 ]
 
@@ -273,3 +274,8 @@ MPESA_CALLBACK_URL = env("MPESA_CALLBACK_URL", default="")
 # a reasonable default (Udemy-style ~70/30 split) rather than a value
 # taken from product requirements — flagged here for finance sign-off.
 PLATFORM_COMMISSION_RATE = Decimal(env("PLATFORM_COMMISSION_RATE", default="0.30"))
+
+# Affiliate referral commission — percent of the referred order's
+# total_amount, credited to the affiliate's wallet on payment success.
+# Same "no documented source of truth" caveat as PLATFORM_COMMISSION_RATE.
+AFFILIATE_DEFAULT_COMMISSION_RATE = Decimal(env("AFFILIATE_DEFAULT_COMMISSION_RATE", default="10.00"))

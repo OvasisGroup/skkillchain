@@ -17,6 +17,7 @@ class OrderItemInputSerializer(serializers.Serializer):
 
 class OrderCreateSerializer(serializers.Serializer):
     items = OrderItemInputSerializer(many=True)
+    referral_code = serializers.CharField(required=False, allow_blank=True)
 
     def validate_items(self, value):
         if not value:

@@ -5,13 +5,12 @@ from django.db import models
 
 
 class Wallet(models.Model):
-    # Scoped to "instructor" only for now — the documented schema's
-    # owner_type is generic (an org or an affiliate could plausibly have
-    # a wallet too), but only instructor course-revenue share is wired up
-    # in this slice. Affiliate commissions are a deferred follow-up (see
-    # the M6 milestone doc) and will reuse this same model when built.
+    # "instructor" (course-revenue share) and "affiliate" (referral
+    # commissions) both settle through this same ledger — an org wallet
+    # is a plausible future third owner_type but nothing creates one yet.
     OWNER_INSTRUCTOR = "instructor"
-    OWNER_TYPE_CHOICES = [(OWNER_INSTRUCTOR, "Instructor")]
+    OWNER_AFFILIATE = "affiliate"
+    OWNER_TYPE_CHOICES = [(OWNER_INSTRUCTOR, "Instructor"), (OWNER_AFFILIATE, "Affiliate")]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner_type = models.CharField(
@@ -77,6 +76,11 @@ class Payout(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Named "instructor" for its first use case (course-revenue payouts),
+    # but this is really just "who gets paid" — affiliate commission
+    # payouts use this same field/table rather than a parallel one. A
+    # rename is cosmetic and deferred rather than risking a migration for
+    # naming purity alone.
     instructor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="payouts"
     )

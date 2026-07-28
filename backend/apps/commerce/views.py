@@ -66,6 +66,9 @@ class CheckoutOrderCreateView(APIView):
                 quantity=item["quantity"],
             )
         services.compute_order_totals(order)
+        referral_code = serializer.validated_data.get("referral_code", "")
+        if referral_code:
+            services.capture_referral(order, referral_code, request.user)
         record_event(
             actor=request.user,
             action="order.create",

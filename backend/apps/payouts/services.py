@@ -7,8 +7,9 @@ from rest_framework.exceptions import ValidationError
 from .models import Payout, Transaction, Wallet
 
 
-def credit_instructor_wallet(
-    instructor_id,
+def _credit_wallet(
+    owner_type: str,
+    owner_id,
     *,
     amount: Decimal,
     currency: str,
@@ -16,12 +17,12 @@ def credit_instructor_wallet(
     reference_type: str = "",
     reference_id=None,
 ) -> Transaction:
-    """Credits an instructor's wallet (creating it on first use) and
-    records the transaction that justifies the credit — the wallet
-    balance is always the sum of its own transaction ledger, never set
-    directly outside of this ledger-writing path."""
+    """Credits a wallet (creating it on first use) and records the
+    transaction that justifies the credit — the wallet balance is always
+    the sum of its own transaction ledger, never set directly outside of
+    this ledger-writing path."""
     wallet, _ = Wallet.objects.get_or_create(
-        owner_type=Wallet.OWNER_INSTRUCTOR, owner_id=instructor_id, currency=currency
+        owner_type=owner_type, owner_id=owner_id, currency=currency
     )
     with db_transaction.atomic():
         wallet = Wallet.objects.select_for_update().get(id=wallet.id)
@@ -37,8 +38,48 @@ def credit_instructor_wallet(
         )
 
 
+def credit_instructor_wallet(
+    instructor_id,
+    *,
+    amount: Decimal,
+    currency: str,
+    reason: str,
+    reference_type: str = "",
+    reference_id=None,
+) -> Transaction:
+    return _credit_wallet(
+        Wallet.OWNER_INSTRUCTOR,
+        instructor_id,
+        amount=amount,
+        currency=currency,
+        reason=reason,
+        reference_type=reference_type,
+        reference_id=reference_id,
+    )
+
+
+def credit_affiliate_wallet(
+    affiliate_user_id,
+    *,
+    amount: Decimal,
+    currency: str,
+    reason: str,
+    reference_type: str = "",
+    reference_id=None,
+) -> Transaction:
+    return _credit_wallet(
+        Wallet.OWNER_AFFILIATE,
+        affiliate_user_id,
+        amount=amount,
+        currency=currency,
+        reason=reason,
+        reference_type=reference_type,
+        reference_id=reference_id,
+    )
+
+
 @db_transaction.atomic
-def request_payout(instructor) -> Payout:
+def request_payout(instructor, owner_type: str = Wallet.OWNER_INSTRUCTOR) -> Payout:
     """
     Sweeps every credit/debit transaction not yet attached to a payout
     into a new one, using the wallet's own running balance as the payout
@@ -54,7 +95,7 @@ def request_payout(instructor) -> Payout:
     """
     wallet = (
         Wallet.objects.select_for_update()
-        .filter(owner_type=Wallet.OWNER_INSTRUCTOR, owner_id=instructor.id)
+        .filter(owner_type=owner_type, owner_id=instructor.id)
         .first()
     )
     if wallet is None or wallet.balance_amount <= 0:
