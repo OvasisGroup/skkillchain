@@ -58,6 +58,7 @@ class AdminNotificationTemplateListView(generics.ListAPIView):
 class AdminNotificationTemplateUpdateView(APIView):
     permission_classes = [HasPermission]
     required_permission = "templates.manage"
+    throttle_scope = "admin-write"
 
     @extend_schema(
         request=NotificationTemplateSerializer, responses={200: NotificationTemplateSerializer}
@@ -84,6 +85,7 @@ class AdminEmailTemplateListView(generics.ListAPIView):
 class AdminEmailTemplateUpdateView(APIView):
     permission_classes = [HasPermission]
     required_permission = "templates.manage"
+    throttle_scope = "admin-write"
 
     @extend_schema(request=EmailTemplateSerializer, responses={200: EmailTemplateSerializer})
     def patch(self, request, code):

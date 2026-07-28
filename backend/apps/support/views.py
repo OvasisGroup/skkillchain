@@ -111,6 +111,7 @@ class AdminSupportTicketUpdateView(generics.UpdateAPIView):
     serializer_class = AdminSupportTicketUpdateSerializer
     permission_classes = [HasPermission]
     required_permission = "support_tickets.manage"
+    throttle_scope = "admin-write"
     queryset = SupportTicket.objects.all()
 
     def update(self, request, *args, **kwargs):

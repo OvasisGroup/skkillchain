@@ -14,6 +14,7 @@ from .serializers import SettingSerializer, SettingUpsertSerializer
 class AdminSettingsView(APIView):
     permission_classes = [HasPermission]
     required_permission = "settings.manage"
+    throttle_scope = "admin-write"
 
     @extend_schema(responses={200: SettingSerializer(many=True)})
     def get(self, request):

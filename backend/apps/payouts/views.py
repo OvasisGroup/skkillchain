@@ -36,6 +36,7 @@ class InstructorPayoutListView(generics.ListAPIView):
 @extend_schema(tags=["Instructor"], request=None, responses={201: PayoutSerializer})
 class InstructorPayoutRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "financial-write"
 
     def post(self, request):
         payout = services.request_payout(request.user)

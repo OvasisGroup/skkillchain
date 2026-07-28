@@ -211,6 +211,7 @@ class CoursesPendingReviewView(generics.ListAPIView):
 class CourseApproveView(APIView):
     permission_classes = [HasPermission]
     required_permission = "courses.approve"
+    throttle_scope = "admin-write"
 
     def post(self, request, id):
         course = get_object_or_404(Course, pk=id)
@@ -234,6 +235,7 @@ class CourseApproveView(APIView):
 class CourseRejectView(APIView):
     permission_classes = [HasPermission]
     required_permission = "courses.approve"
+    throttle_scope = "admin-write"
 
     def post(self, request, id):
         serializer = CourseRejectSerializer(data=request.data)

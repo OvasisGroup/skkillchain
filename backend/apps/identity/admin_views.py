@@ -31,6 +31,7 @@ class AdminUserListView(generics.ListAPIView):
 class AdminUserStatusUpdateView(APIView):
     permission_classes = [HasPermission]
     required_permission = "users.manage"
+    throttle_scope = "admin-write"
 
     def patch(self, request, user_id):
         user = get_object_or_404(User, pk=user_id)

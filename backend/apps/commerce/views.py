@@ -51,6 +51,7 @@ def _owned_course_or_403(course_id, user):
 @extend_schema(tags=["Payments"], request=OrderCreateSerializer, responses={201: OrderSerializer})
 class CheckoutOrderCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "financial-write"
 
     def post(self, request):
         serializer = OrderCreateSerializer(data=request.data)
@@ -82,6 +83,7 @@ class CheckoutOrderCreateView(APIView):
 @extend_schema(tags=["Payments"], request=ApplyCouponSerializer, responses={200: OrderSerializer})
 class ApplyCouponView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "financial-write"
 
     def post(self, request, order_id):
         order = _owned_order_or_404(order_id, request.user)
@@ -97,6 +99,7 @@ class ApplyCouponView(APIView):
 @extend_schema(tags=["Payments"], request=ApplyGiftCardSerializer, responses={200: OrderSerializer})
 class ApplyGiftCardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "financial-write"
 
     def post(self, request, order_id):
         order = _owned_order_or_404(order_id, request.user)
@@ -114,6 +117,7 @@ class ApplyGiftCardView(APIView):
 @extend_schema(tags=["Payments"], request=PaySerializer, responses={200: PayResponseSerializer})
 class PayOrderView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "financial-write"
 
     def post(self, request, order_id):
         order = _owned_order_or_404(order_id, request.user)
@@ -209,6 +213,7 @@ class InvoiceListView(generics.ListAPIView):
 @extend_schema(tags=["Payments"], request=RefundCreateSerializer, responses={201: RefundSerializer})
 class RefundCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "financial-write"
 
     def post(self, request):
         serializer = RefundCreateSerializer(data=request.data)
@@ -271,6 +276,7 @@ class GiftCardBalanceView(APIView):
 @extend_schema(tags=["Instructor"], request=CouponSerializer, responses={201: CouponSerializer})
 class InstructorCouponCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "financial-write"
 
     def post(self, request, course_id):
         course = _owned_course_or_403(course_id, request.user)
@@ -285,6 +291,7 @@ class AdminCouponListCreateView(generics.ListCreateAPIView):
     serializer_class = CouponSerializer
     permission_classes = [HasPermission]
     required_permission = "coupons.manage"
+    throttle_scope = "admin-write"
     queryset = Coupon.objects.all()
     pagination_class = None
 
@@ -297,6 +304,7 @@ class AdminPromotionListCreateView(generics.ListCreateAPIView):
     serializer_class = PromotionSerializer
     permission_classes = [HasPermission]
     required_permission = "promotions.manage"
+    throttle_scope = "admin-write"
     queryset = Promotion.objects.all()
     pagination_class = None
 
@@ -309,6 +317,7 @@ class AdminPromotionUpdateView(generics.UpdateAPIView):
     serializer_class = PromotionSerializer
     permission_classes = [HasPermission]
     required_permission = "promotions.manage"
+    throttle_scope = "admin-write"
     queryset = Promotion.objects.all()
 
 

@@ -88,6 +88,7 @@ class AffiliateWalletView(APIView):
 @extend_schema(tags=["Affiliate"], request=None, responses={201: PayoutSerializer})
 class AffiliatePayoutRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "financial-write"
 
     def post(self, request):
         _own_affiliate_account_or_403(request.user)

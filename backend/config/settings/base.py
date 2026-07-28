@@ -208,18 +208,41 @@ REST_FRAMEWORK = {
     # concurrent writes to the underlying list, unlike offset pagination.
     "DEFAULT_PAGINATION_CLASS": "shared.api.pagination.DefaultCursorPagination",
     "PAGE_SIZE": 20,
-    # Opt-in per-view via `throttle_scope = "..."` — a no-op for views that
-    # don't set one, so this is safe as a global default.
+    # M11 (docs/07-delivery-planning/02-backend-build-milestones.md
+    # "Security Hardening and Compliance Pass" — rate limits per endpoint):
+    # a blanket per-user/per-IP throttle (UserRateThrottle/AnonRateThrottle,
+    # the "user"/"anon" scopes below) applies to every endpoint with no
+    # per-view opt-in needed, since before this only ~10% of authenticated
+    # endpoints had any rate limit at all. ScopedRateThrottle then layers a
+    # tighter, endpoint-specific limit on top via `throttle_scope = "..."`
+    # for the genuinely sensitive surface (financial mutations, admin
+    # mutations, auth, AI) — DRF applies every configured throttle class
+    # and the most restrictive one wins, so both coexist safely.
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.ScopedRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.AnonRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
+        "user": "300/min",
+        "anon": "60/min",
         "auth-login": "10/min",
         "auth-mfa": "10/min",
         # Per-user/day caps on AI endpoints (M8 security checklist — bound
         # cost exposure on calls that hit a real, metered LLM API).
         "ai-chat": "60/day",
         "ai-generation": "20/day",
+        # Financial mutations (checkout, payment, refund, coupon/gift-card
+        # redemption, payout requests) — tighter than the "user" blanket
+        # since these have real monetary consequences per call.
+        "financial-write": "20/min",
+        # Admin mutation endpoints — already permission-gated, but still
+        # worth throttling to slow down abuse via a compromised admin
+        # session/token.
+        "admin-write": "60/min",
+        # No real staging traffic exists yet to tune these from — same
+        # "reasonable default, flagged for re-tuning" precedent as
+        # PLATFORM_COMMISSION_RATE.
     },
 }
 

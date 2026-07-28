@@ -47,6 +47,7 @@ class AdminInstructorListView(generics.ListAPIView):
 class AdminInstructorApproveView(APIView):
     permission_classes = [HasPermission]
     required_permission = "instructors.approve"
+    throttle_scope = "admin-write"
 
     def post(self, request, user_id):
         application = services.approve_instructor_application(user_id, request.user)
