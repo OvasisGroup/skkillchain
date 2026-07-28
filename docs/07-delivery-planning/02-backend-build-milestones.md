@@ -288,7 +288,7 @@ production launch of the coding-exercise feature, not silently dropped.
 
 ---
 
-### M6 — Commerce, Payments, and Payouts — commerce core done, billing/payouts/affiliates deferred
+### M6 — Commerce, Payments, and Payouts — commerce/billing/payouts done, affiliates deferred
 **Sprint 4 (adapters) + Sprint 6 (full ledger)** · Apps: `commerce`, `billing`, `payouts`, `affiliates`
 **Requirements**: FR-PAY-001 – FR-PAY-004
 
@@ -355,8 +355,8 @@ is tokenization/redirect/hosted-checkout based (Stripe PaymentIntents + client-s
 PayPal/Flutterwave/Paystack hosted checkout redirects, M-Pesa STK push to the phone), never a
 card-number field anywhere in a model or serializer. Webhook endpoints reject unsigned or replayed
 events with tests proving both, for every provider whose model supports local verification, plus
-live HTTP confirmation for Stripe. **Payout reconciliation is N/A for this slice** — payouts don't
-exist yet, see deferred scope below.
+live HTTP confirmation for Stripe. Payout reconciliation — see the `payouts` section below, built
+in the same milestone.
 
 **`billing` (plans/subscriptions) — built and verified end-to-end**: rather than a separate
 `POST /subscriptions` that creates an active subscription without payment (the original
@@ -376,15 +376,35 @@ already-canceled subscription (400, tested). `subscriber_type`/`subscriber_id` i
 so the polymorphic "or organization" half of the documented schema is shaped but not exercised,
 documented directly on the model rather than silently only-half-implemented.
 
-**Deferred to follow-up slices** (each a distinct, mostly-independent subsystem — same reasoning
-as every prior milestone's split): `payouts` (wallets/transactions/payouts, including the
-reconciliation test named in the original security checklist), `affiliates`
-(affiliate_accounts/referrals/commissions).
+**`payouts` (wallets/transactions/payouts) — built and verified end-to-end**: a course sale
+credits the instructor's `Wallet` at `finalize_order_payment` time — `(1 - PLATFORM_COMMISSION_RATE)`
+of the item's price, via `apps.payouts.services.credit_instructor_wallet`, which writes a
+`Transaction` and updates the wallet balance in the same atomic block (the balance is always the
+sum of its own ledger, never set directly outside that path). `PLATFORM_COMMISSION_RATE`
+defaults to 0.30 — flagged in its own settings comment as a reasonable default with no
+documented source of truth in product requirements, not a value taken from a pricing doc.
+`POST /instructor/payout-requests/` sweeps every not-yet-paid-out transaction into a new `Payout`
+at the wallet's current balance, zeroes the wallet, and marks the payout `paid` immediately —
+**no provider payout execution exists** (no bank/mobile-money rail is wired up); this is
+internal ledger accounting only, named as a real gap in the code rather than implied as done, the
+same pattern as the M-Pesa refund and coding-exercise-sandbox gaps. **Reconciliation — the
+security checklist's specific requirement — is verified two independent ways, both in tests and
+live**: (1) a payout's `amount_gross` is re-derived by summing exactly the `Transaction` rows
+attached to it (`payout=X, direction=credit`) via a query that shares none of `request_payout`'s
+own arithmetic, and (2) a wallet's running `balance_amount` is independently re-derived as
+credits-minus-debits summed fresh from the full ledger. Verified live end-to-end: a real course
+purchase credited the instructor's wallet from \$0 to exactly \$70.00 on a \$100 sale at the
+default 30% commission, a payout request swept it into a `paid` `Payout` of \$70.00 and zeroed
+the wallet, and a raw database query independently re-summing the payout's linked credit
+transactions confirmed \$70.00 — matching `amount_gross` exactly, computed by a completely
+separate code path than the one that set it.
 
-**Exit criteria**: the coupon+gift-card reconciliation clause is met — verified live, exactly as
-described above, including under a duplicate webhook delivery (tested, not just asserted). The
-instructor-payout reconciliation clause moves to the `payouts` follow-up, since payouts don't
-exist yet in this slice.
+**Deferred to a follow-up slice**: `affiliates` (affiliate_accounts/referrals/commissions) — a
+distinct, mostly-independent subsystem, same reasoning as every prior milestone's split.
+
+**Exit criteria**: met in full — the coupon+gift-card reconciliation clause (verified live,
+including under a duplicate webhook delivery) and the instructor-payout reconciliation clause
+(verified live, independently re-derived from the ledger as described above) are both done.
 
 ---
 

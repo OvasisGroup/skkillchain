@@ -8,6 +8,7 @@ real one from the environment and fail loudly if it's missing).
 """
 
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import environ
@@ -40,6 +41,7 @@ INSTALLED_APPS = [
     "apps.assessments",
     "apps.billing",
     "apps.commerce",
+    "apps.payouts",
     "shared.health",
 ]
 
@@ -263,3 +265,11 @@ MPESA_PASSKEY = env("MPESA_PASSKEY", default="")
 # verification; real IP allowlisting still belongs at the infra layer.
 MPESA_CALLBACK_SECRET = env("MPESA_CALLBACK_SECRET", default="")
 MPESA_CALLBACK_URL = env("MPESA_CALLBACK_URL", default="")
+
+# Instructor revenue share (M6 payouts) — instructor keeps
+# (1 - PLATFORM_COMMISSION_RATE) of each course sale, credited to their
+# wallet at payment-success time. No documented source of truth for the
+# real rate exists yet (no pricing/finance doc specifies one), so this is
+# a reasonable default (Udemy-style ~70/30 split) rather than a value
+# taken from product requirements — flagged here for finance sign-off.
+PLATFORM_COMMISSION_RATE = Decimal(env("PLATFORM_COMMISSION_RATE", default="0.30"))

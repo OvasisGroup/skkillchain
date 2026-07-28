@@ -1,6 +1,7 @@
 import uuid
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -8,6 +9,7 @@ from rest_framework.exceptions import ValidationError
 from apps.billing.models import Plan, Subscription
 from apps.catalog.models import Course
 from apps.learning.models import Enrollment
+from apps.payouts.services import credit_instructor_wallet
 
 from .models import (
     Coupon,
@@ -187,6 +189,19 @@ def finalize_order_payment(order: Order) -> None:
             student=order.buyer,
             defaults={"source": Enrollment.SOURCE_PURCHASE},
         )
+        course = Course.objects.filter(id=item.item_id).first()
+        if course is not None and item.unit_price > 0:
+            instructor_share = (
+                item.unit_price * item.quantity * (Decimal("1") - settings.PLATFORM_COMMISSION_RATE)
+            )
+            credit_instructor_wallet(
+                course.owner_id,
+                amount=instructor_share,
+                currency=order.currency,
+                reason="course_sale",
+                reference_type="Payment",
+                reference_id=order.id,
+            )
 
     for item in order.items.filter(item_type=OrderItem.ITEM_TYPE_PLAN):
         plan = Plan.objects.get(id=item.item_id)
