@@ -5,6 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from apps.billing.models import Plan, Subscription
 from apps.catalog.models import Course
 from apps.learning.models import Enrollment
 
@@ -20,25 +21,41 @@ from .models import (
 
 
 def price_items(items_data: list[dict]) -> list[dict]:
-    """Validates each requested item against the real, current Course
+    """Validates each requested item against the real, current Course/Plan
     record and prices it server-side — a client-submitted unit_price is
     never trusted, even if one were accepted in the request."""
     priced = []
     for item in items_data:
-        if item["item_type"] != OrderItem.ITEM_TYPE_COURSE:
+        if item["item_type"] == OrderItem.ITEM_TYPE_COURSE:
+            course = Course.objects.filter(
+                id=item["item_id"], status=Course.STATUS_PUBLISHED
+            ).first()
+            if course is None:
+                raise ValidationError(f"Course {item['item_id']} is not available for purchase.")
+            priced.append(
+                {
+                    "item_type": OrderItem.ITEM_TYPE_COURSE,
+                    "item_id": course.id,
+                    "unit_price": course.price_amount,
+                    "quantity": item.get("quantity", 1),
+                    "currency": course.currency,
+                }
+            )
+        elif item["item_type"] == OrderItem.ITEM_TYPE_PLAN:
+            plan = Plan.objects.filter(id=item["item_id"], is_active=True).first()
+            if plan is None:
+                raise ValidationError(f"Plan {item['item_id']} is not available for purchase.")
+            priced.append(
+                {
+                    "item_type": OrderItem.ITEM_TYPE_PLAN,
+                    "item_id": plan.id,
+                    "unit_price": plan.price_amount,
+                    "quantity": 1,  # a subscription plan is never bought in bulk
+                    "currency": plan.currency,
+                }
+            )
+        else:
             raise ValidationError(f"Unsupported item_type '{item['item_type']}'.")
-        course = Course.objects.filter(id=item["item_id"], status=Course.STATUS_PUBLISHED).first()
-        if course is None:
-            raise ValidationError(f"Course {item['item_id']} is not available for purchase.")
-        priced.append(
-            {
-                "item_type": OrderItem.ITEM_TYPE_COURSE,
-                "item_id": course.id,
-                "unit_price": course.price_amount,
-                "quantity": item.get("quantity", 1),
-                "currency": course.currency,
-            }
-        )
     return priced
 
 
@@ -169,4 +186,14 @@ def finalize_order_payment(order: Order) -> None:
             course_id=item.item_id,
             student=order.buyer,
             defaults={"source": Enrollment.SOURCE_PURCHASE},
+        )
+
+    for item in order.items.filter(item_type=OrderItem.ITEM_TYPE_PLAN):
+        plan = Plan.objects.get(id=item.item_id)
+        Subscription.objects.get_or_create(
+            subscriber_type=Subscription.SUBSCRIBER_USER,
+            subscriber_id=order.buyer_id,
+            plan=plan,
+            status=Subscription.STATUS_ACTIVE,
+            defaults={"renews_at": timezone.now() + plan.interval_timedelta},
         )

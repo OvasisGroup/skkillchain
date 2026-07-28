@@ -154,7 +154,8 @@ class Order(TimeStampedModel):
 
 class OrderItem(models.Model):
     ITEM_TYPE_COURSE = "course"
-    ITEM_TYPE_CHOICES = [(ITEM_TYPE_COURSE, "Course")]
+    ITEM_TYPE_PLAN = "plan"
+    ITEM_TYPE_CHOICES = [(ITEM_TYPE_COURSE, "Course"), (ITEM_TYPE_PLAN, "Plan")]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")

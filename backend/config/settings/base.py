@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.learning",
     "apps.live_sessions",
     "apps.assessments",
+    "apps.billing",
     "apps.commerce",
     "shared.health",
 ]

@@ -358,10 +358,28 @@ events with tests proving both, for every provider whose model supports local ve
 live HTTP confirmation for Stripe. **Payout reconciliation is N/A for this slice** — payouts don't
 exist yet, see deferred scope below.
 
+**`billing` (plans/subscriptions) — built and verified end-to-end**: rather than a separate
+`POST /subscriptions` that creates an active subscription without payment (the original
+aspirational OpenAPI sketch), subscriptions are purchased through the *same* checkout flow as
+courses — `OrderItem.item_type="plan"` prices from the live `Plan.price_amount`
+(`apps.commerce.services.price_items`), and `finalize_order_payment` activates the
+`Subscription` on payment success exactly the way it creates an `Enrollment` for a course item.
+This was a deliberate deviation from the documented endpoint shape, made because a direct-create
+endpoint would be a second path to an active subscription that skips real payment entirely —
+every paid resource goes through one server-priced, provider-confirmed flow, not two. Verified
+live over real HTTP: `GET /plans/` (public), a checkout order for a plan priced correctly from
+the live `Plan` record, a \$0 plan finalizing into an `active` `Subscription` with `renews_at`
+set to `started_at + billing_interval` (30 days for monthly, confirmed by direct inspection), and
+`PATCH /subscriptions/{id}/cancel/` — owner-only (403 for a non-owner, tested), rejecting an
+already-canceled subscription (400, tested). `subscriber_type`/`subscriber_id` is scoped to
+`"user"` only for now — no `Organization` model exists yet in this codebase (a later milestone),
+so the polymorphic "or organization" half of the documented schema is shaped but not exercised,
+documented directly on the model rather than silently only-half-implemented.
+
 **Deferred to follow-up slices** (each a distinct, mostly-independent subsystem — same reasoning
-as every prior milestone's split): `billing` (plans/subscriptions), `payouts`
-(wallets/transactions/payouts, including the reconciliation test named in the original security
-checklist), `affiliates` (affiliate_accounts/referrals/commissions).
+as every prior milestone's split): `payouts` (wallets/transactions/payouts, including the
+reconciliation test named in the original security checklist), `affiliates`
+(affiliate_accounts/referrals/commissions).
 
 **Exit criteria**: the coupon+gift-card reconciliation clause is met — verified live, exactly as
 described above, including under a duplicate webhook delivery (tested, not just asserted). The
