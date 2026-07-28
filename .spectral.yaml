@@ -1,0 +1,14 @@
+extends: ["spectral:oas"]
+
+rules:
+  # Neither this hand-authored spec nor drf-spectacular's live schema sets
+  # operationId anywhere — turned off rather than retrofitting one onto
+  # every one of the ~157 operations for a field nothing here consumes.
+  operation-operationId: off
+
+# Everything else stays at spectral:oas defaults. Real structural problems
+# (invalid $refs, malformed schemas, duplicate operationIds, etc.) are
+# "error" severity and fail CI (spectral's default --fail-severity=error).
+# Style nits like a missing per-operation "description" (this spec uses
+# "summary" for that) stay "warning" — visible in the CI log, not a merge
+# blocker.

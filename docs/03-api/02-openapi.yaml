@@ -121,7 +121,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
-        '401': { description: Incorrect code, or mfa_token expired/invalid }
+        '401': { description: 'Incorrect code, or mfa_token expired/invalid' }
   /auth/oauth/{provider}/token:
     post:
       tags: [Auth]
@@ -154,7 +154,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
-        '401': { description: Token failed provider verification, or would link an unverified email to an existing account }
+        '401': { description: 'Token failed provider verification, or would link an unverified email to an existing account' }
         '404': { description: Unknown provider }
   /auth/me:
     get:
@@ -844,7 +844,7 @@ paths:
                 code: { type: string }
                 amount: { type: string, description: Optional partial amount to apply }
       responses:
-        '200': { description: Gift card applied, order totals recalculated }
+        '200': { description: 'Gift card applied, order totals recalculated' }
   /checkout/orders/{orderId}/pay:
     post:
       tags: [Payments]

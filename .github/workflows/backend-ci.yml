@@ -4,11 +4,15 @@ on:
   pull_request:
     paths:
       - "backend/**"
+      - "docs/03-api/02-openapi.yaml"
+      - ".spectral.yaml"
       - ".github/workflows/backend-ci.yml"
   push:
     branches: [main]
     paths:
       - "backend/**"
+      - "docs/03-api/02-openapi.yaml"
+      - ".spectral.yaml"
       - ".github/workflows/backend-ci.yml"
 
 defaults:
@@ -30,6 +34,9 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
       - run: pip install -e .[dev]
       - run: ruff check .
       - run: black --check .
@@ -45,6 +52,16 @@ jobs:
       # placeholder. Any new endpoint must be added to the spec in the same
       # PR, and vice versa.
       - run: python scripts/reconcile_openapi_spec.py
+      # M12: lints docs/03-api/02-openapi.yaml itself (valid $refs, no
+      # duplicate operationIds, well-formed schemas, ...) against
+      # .spectral.yaml at the repo root — separate from the reconciliation
+      # check above, which only compares the *route list*, not spec
+      # validity. Fails only on real errors (spectral's default
+      # --fail-severity=error); missing-description style warnings don't
+      # block the merge.
+      - name: Spectral lint OpenAPI spec
+        working-directory: ${{ github.workspace }}
+        run: npx --yes @stoplight/spectral-cli@6.16.2 lint docs/03-api/02-openapi.yaml
 
   test:
     runs-on: ubuntu-latest
