@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "apps.affiliates",
     "apps.messaging",
     "apps.notifications",
+    "apps.reviews",
     "shared.health",
 ]
 
