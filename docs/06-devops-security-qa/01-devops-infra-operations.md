@@ -129,3 +129,15 @@ here.
 - Post-deploy:
   - Smoke suite and business transaction probes.
   - Audit release notes and incident watch window.
+
+### Scripted rollout and rollback
+
+`backend/scripts/deploy/blue_green_deploy.sh` and `rollback.sh` (see
+`backend/scripts/deploy/README.md`) implement the deploy-steps bullets
+above as real kubectl automation: a lock-step migration job, then a
+5%/25%/100% canary ramp between two Deployments sharing one Service,
+health-checked and auto-rolled-back at each stage. **Not yet run against
+real infrastructure** — no Kubernetes manifests exist in this repo yet
+(§3 above is the target design), so there is no cluster to run it
+against from this sandbox. Running it for real, against a provisioned
+`api-stable`/`api-canary` pair, is the actual rehearsal.
