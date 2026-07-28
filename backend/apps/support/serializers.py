@@ -40,3 +40,14 @@ class SupportTicketMessageSerializer(serializers.ModelSerializer):
 
 class SupportTicketMessageCreateSerializer(serializers.Serializer):
     body = serializers.CharField(allow_blank=False)
+
+
+class AdminSupportTicketUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupportTicket
+        fields = ["assignee", "status", "priority"]
+        extra_kwargs = {
+            "assignee": {"required": False},
+            "status": {"required": False},
+            "priority": {"required": False},
+        }

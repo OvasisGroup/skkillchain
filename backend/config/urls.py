@@ -6,6 +6,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("healthz/", include("shared.health.urls")),
     path("api/v1/auth/", include("apps.identity.urls")),
+    path("api/v1/", include("apps.identity.admin_urls")),
+    path("api/v1/", include("apps.audit.urls")),
     path("api/v1/", include("apps.catalog.urls")),
     path("api/v1/instructor/", include("apps.content.urls")),
     path("api/v1/", include("apps.learning.urls")),

@@ -6,10 +6,12 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.audit.services import record_event
+from apps.authorization.permissions import HasPermission
 
 from . import services
 from .models import SupportTicket, SupportTicketMessage
 from .serializers import (
+    AdminSupportTicketUpdateSerializer,
     SupportTicketCreateSerializer,
     SupportTicketMessageCreateSerializer,
     SupportTicketMessageSerializer,
@@ -87,3 +89,27 @@ class SupportTicketMessageListCreateView(generics.ListCreateAPIView):
             request=request,
         )
         return Response(SupportTicketMessageSerializer(message).data, status=201)
+
+
+@extend_schema(tags=["Admin"])
+class AdminSupportTicketListView(generics.ListAPIView):
+    serializer_class = SupportTicketSerializer
+    permission_classes = [HasPermission]
+    required_permission = "support_tickets.manage"
+    queryset = SupportTicket.objects.all()
+    pagination_class = None
+
+
+@extend_schema(
+    tags=["Admin"], request=AdminSupportTicketUpdateSerializer, responses={200: SupportTicketSerializer}
+)
+class AdminSupportTicketUpdateView(generics.UpdateAPIView):
+    serializer_class = AdminSupportTicketUpdateSerializer
+    permission_classes = [HasPermission]
+    required_permission = "support_tickets.manage"
+    queryset = SupportTicket.objects.all()
+
+    def update(self, request, *args, **kwargs):
+        super().update(request, *args, **kwargs)
+        ticket = self.get_object()
+        return Response(SupportTicketSerializer(ticket).data)

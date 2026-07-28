@@ -249,6 +249,7 @@ SPECTACULAR_SETTINGS = {
         "GradeEntryTypeEnum": "apps.assessments.serializers.GRADE_ENTRY_TYPE_CHOICES",
         "PaymentProviderEnum": "apps.commerce.serializers.PAYMENT_PROVIDER_CHOICES",
         "ConferencingProviderEnum": "apps.live_sessions.models.ConferencingAccount.PROVIDER_CHOICES",
+        "SupportTicketStatusEnum": "apps.support.models.SupportTicket.STATUS_CHOICES",
     },
 }
 
