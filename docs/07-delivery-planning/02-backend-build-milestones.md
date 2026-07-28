@@ -154,7 +154,7 @@ no search yet to measure.
 
 ---
 
-### M4 — Enrollment, Learning Experience, and Live Sessions — learning core done, live_sessions deferred
+### M4 — Enrollment, Learning Experience, and Live Sessions — done
 **Sprint 4–5** · Apps: `learning`, `live_sessions`
 **Requirements**: FR-LRN-001 – FR-LRN-003, FR-LIVE-001 – FR-LIVE-008
 
@@ -171,22 +171,62 @@ exercised over real HTTP):
 - Notes/bookmarks/progress all require the student to actually be enrolled in the lesson's
   course (403 otherwise, tested).
 
-**Deferred to a follow-up** (a distinct, mostly-independent subsystem — same reasoning as every
-prior milestone's split):
-- **`live_sessions` app in full**: conferencing OAuth (Zoom/Google Meet), `live_sessions`/
-  `live_session_registrations`/`live_session_recordings`, join-window gating.
-- **Real Celery infrastructure**: no `config/celery.py` app instance or worker/beat task exists
-  yet anywhere in the codebase, despite the RabbitMQ container running since M0. live_sessions
-  needs it for reminder dispatch and the Google Meet recording poll, so standing up Celery for
-  real happens as part of that slice rather than as a preparatory step with nothing using it yet.
+**Celery infrastructure — built and verified end-to-end**: `config/celery.py` app instance
+(fails safe to `config.settings.prod` if `DJANGO_SETTINGS_MODULE` isn't set, same reasoning as
+`wsgi.py`/`asgi.py`), RabbitMQ broker + Redis result backend, `worker`/`beat` services added to
+`docker-compose.yml`. Proved live by dispatching `shared.health.ping` through a real running
+worker consuming from real RabbitMQ and reading the result back from real Redis, cross-checked
+against the worker's own log for the exact task ID.
+
+**`live_sessions` app — built and verified end-to-end**:
+- `ConferencingAccount`: real authorization-code OAuth2 against Zoom and Google Meet (distinct
+  from the M1 identity-login OAuth, which only ever verifies a provider ID token — this flow
+  exchanges a `code` for access+refresh tokens the backend calls provider APIs with later).
+  Tokens are Fernet-encrypted at rest (`shared/crypto.py`) and never appear in any API response —
+  asserted directly in tests (`ConferencingAccountSerializer` excludes the encrypted fields) and
+  live (the callback view's created row was inspected directly in the DB, not through the API).
+  CSRF state is a signed, 10-minute `django.core.signing` token
+  (`apps/live_sessions/oauth_state.py`), same pattern as M1's MFA login-challenge token.
+- `LiveSession` scheduling calls the real provider's meeting-creation API
+  (`POST /v2/users/me/meetings` for Zoom, `Calendar events.insert` with `conferenceDataVersion=1`
+  for Google Meet) and stores the returned `join_url`/`host_join_url`/`external_meeting_id`.
+- **Join-window gating (the security-critical piece)**: `LiveSessionJoinView` only returns
+  `join_url` to a student who (a) has a non-canceled registration and (b) is within
+  `[scheduled_start_at - 15min, scheduled_end_at]` — enforced server-side, never left to the
+  client. Verified with explicit boundary tests (not-registered / too-early / window-open /
+  after-end / canceled-registration / canceled-session) and live over real HTTP: a request 20
+  minutes before start returned 403 with `"Too early..."`, the same session moved into its window
+  returned the real `join_url` and flipped the registration to `attended` with a `joined_at`
+  timestamp and an audit-log row, all confirmed by reading the database directly afterward.
+- `LiveSessionCancelView` cancels locally even if the remote provider call fails (a network
+  outage on Zoom's side must never block a local cancellation), recording a
+  `live_session.provider_cancel_failed` audit event instead of swallowing the error. Both
+  `zoom.py` and `google_meet.py` wrap every outbound `requests` call so a raw network failure
+  (timeout, DNS, connection refused) surfaces as `ConferencingProviderError` — a real bug caught
+  by a test that simulated a `ConnectionError` on cancel, since the adapters originally only
+  handled bad HTTP status codes, not transport-level failures.
+- Capacity enforcement, registration/unregistration, recording lookup with host/registered-only
+  visibility, and instructor-only registration listing — all tested and verified.
+- Celery Beat tasks (5/5/15-minute schedules in `CELERY_BEAT_SCHEDULE`): `dispatch_reminders`
+  (identifies who needs reminding — there's no send channel yet, that's M7, so it logs a count
+  rather than pretending to send), `poll_google_meet_recordings` (Google has no recording-ready
+  webhook, so this is a documented best-effort Drive-search heuristic, not a guarantee),
+  `close_ended_sessions`. All three dispatched through the real worker/broker and confirmed via
+  the worker's log.
+
+**Deferred to a follow-up** (a distinct, unrelated subsystem):
 - **Certificate PDF rendering + storage**: `pdf_key` is a real column with nothing writing to it
-  — no S3/file-storage integration exists anywhere in the codebase yet either.
+  — no S3/file-storage integration exists anywhere in the codebase yet.
 
-**Security checklist**: N/A yet for `conferencing_accounts` — moves to the live_sessions slice.
+**Security checklist**: conferencing OAuth tokens encrypted at rest and never serialized in any
+response (verified in tests and live); join-window gating enforced server-side with negative-path
+tests for every boundary; unverified/tampered/expired OAuth state tokens rejected (signature and
+10-minute max-age both tested); a student must be enrolled in the course to register for its live
+sessions (403 otherwise, tested).
 
-**Exit criteria**: revised to match the sliced scope — "enroll → resume playback → earn
-certificate" is done and verified live. The live-session join-window clause moves to the
-live_sessions follow-up.
+**Exit criteria**: met — "enroll → resume playback → earn certificate" and "register → join
+within the window, denied outside it → recording available after the fact" are both done and
+verified live.
 
 ---
 

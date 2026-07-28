@@ -1,6 +1,6 @@
 COMPOSE = docker compose -f infra/docker/docker-compose.yml
 
-.PHONY: up down logs migrate test lint fmt shell
+.PHONY: up down logs migrate test lint fmt shell celery-ping
 
 up:
 	$(COMPOSE) up --build
@@ -26,3 +26,8 @@ fmt:
 
 shell:
 	$(COMPOSE) exec api python manage.py shell
+
+# Proves a worker is actually consuming from RabbitMQ, not just that the
+# task queues without error.
+celery-ping:
+	$(COMPOSE) exec api python manage.py shell -c "from shared.health.tasks import ping; print(ping.delay().get(timeout=10))"

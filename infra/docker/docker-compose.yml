@@ -56,11 +56,12 @@ services:
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py runserver 0.0.0.0:8000"
-    environment:
+    environment: &api_env
       DJANGO_SETTINGS_MODULE: config.settings.dev
       SECRET_KEY: dev-only-secret-do-not-use-in-production
       DATABASE_URL: postgres://skillchain:skillchain@postgres:5432/skillchain
       REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672//
     ports:
       - "8000:8000"
     volumes:
@@ -69,6 +70,38 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ../../backend
+    command: celery -A config worker --loglevel=info
+    environment: *api_env
+    volumes:
+      - ../../backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  beat:
+    build:
+      context: ../../backend
+    command: celery -A config beat --loglevel=info
+    environment: *api_env
+    volumes:
+      - ../../backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
 volumes:

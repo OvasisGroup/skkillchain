@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.catalog",
     "apps.content",
     "apps.learning",
+    "apps.live_sessions",
     "shared.health",
 ]
 
@@ -81,6 +82,37 @@ CACHES = {
         "LOCATION": env("REDIS_URL"),
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     }
+}
+
+# Celery: RabbitMQ as the broker, Redis for results (docs/01-architecture
+# §Core Backend Components — "Async Processing"). Workers are a separate
+# container/CMD (see infra/docker/docker-compose.yml worker/beat services),
+# never invoked in-process from a web request.
+CELERY_BROKER_URL = env("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = env("REDIS_URL")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+# Belt-and-suspenders alongside each task's own time_limit kwarg: nothing
+# should be able to wedge a worker indefinitely.
+CELERY_TASK_TIME_LIMIT = 300
+
+CELERY_BEAT_SCHEDULE = {
+    "live-sessions-dispatch-reminders": {
+        "task": "live_sessions.dispatch_reminders",
+        "schedule": 300.0,  # every 5 minutes
+    },
+    "live-sessions-poll-google-meet-recordings": {
+        "task": "live_sessions.poll_google_meet_recordings",
+        "schedule": 900.0,  # every 15 minutes
+    },
+    "live-sessions-close-ended-sessions": {
+        "task": "live_sessions.close_ended_sessions",
+        "schedule": 300.0,  # every 5 minutes
+    },
 }
 
 AUTH_USER_MODEL = "identity.User"
@@ -191,3 +223,14 @@ APPLE_OAUTH_CLIENT_ID = env("APPLE_OAUTH_CLIENT_ID", default="")
 # Web frontend origin — used to build user-facing links (e.g. a
 # certificate's QR verification URL) that point at the app, not the API.
 PUBLIC_APP_URL = env("PUBLIC_APP_URL", default="http://localhost:3000")
+
+# Conferencing OAuth (live sessions) — full authorization-code flow per
+# instructor. See apps/live_sessions/conferencing/ and
+# docs/01-architecture/01-technical-architecture.md §3.1 for why this is a
+# separate credential set from GOOGLE_OAUTH_CLIENT_ID above.
+ZOOM_CLIENT_ID = env("ZOOM_CLIENT_ID", default="")
+ZOOM_CLIENT_SECRET = env("ZOOM_CLIENT_SECRET", default="")
+ZOOM_REDIRECT_URI = env("ZOOM_REDIRECT_URI", default="")
+GOOGLE_MEET_CLIENT_ID = env("GOOGLE_MEET_CLIENT_ID", default="")
+GOOGLE_MEET_CLIENT_SECRET = env("GOOGLE_MEET_CLIENT_SECRET", default="")
+GOOGLE_MEET_REDIRECT_URI = env("GOOGLE_MEET_REDIRECT_URI", default="")
