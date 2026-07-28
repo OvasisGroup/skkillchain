@@ -17,24 +17,38 @@ logger = logging.getLogger(__name__)
 def dispatch_reminders() -> int:
     """
     Finds registrations for sessions starting in the next hour that haven't
-    been reminded yet. There is no notification channel wired up yet
-    (email/push is M7), so this only identifies who *would* be reminded —
-    it logs the count rather than pretending to send anything. Wiring this
-    into a real send is a follow-up, not a bug in this task.
+    been reminded yet (reminded_at is set right after queuing the
+    notification, so the every-5-minutes beat schedule doesn't re-notify
+    the same registration on its next run).
     """
+    from apps.notifications.services import notify
+
     window_end = timezone.now() + timedelta(hours=1)
     due = LiveSessionRegistration.objects.filter(
         status=LiveSessionRegistration.STATUS_REGISTERED,
+        reminded_at__isnull=True,
         live_session__scheduled_start_at__gt=timezone.now(),
         live_session__scheduled_start_at__lte=window_end,
         live_session__status=LiveSession.STATUS_SCHEDULED,
     ).select_related("live_session", "student")
 
-    count = due.count()
-    logger.info(
-        "live_sessions.dispatch_reminders: %d registrations due for a reminder (no send channel yet)",
-        count,
-    )
+    count = 0
+    for registration in due:
+        notify(
+            registration.student,
+            type="live_session_reminder",
+            channels=["in_app", "email"],
+            title=f"Starting soon: {registration.live_session.title}",
+            body=(
+                f"{registration.live_session.title} starts at "
+                f"{registration.live_session.scheduled_start_at:%Y-%m-%d %H:%M UTC}."
+            ),
+        )
+        registration.reminded_at = timezone.now()
+        registration.save(update_fields=["reminded_at"])
+        count += 1
+
+    logger.info("live_sessions.dispatch_reminders: sent %d reminder(s)", count)
     return count
 
 

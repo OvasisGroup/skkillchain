@@ -14,15 +14,19 @@ django_asgi_app = get_asgi_application()
 from channels.routing import ProtocolTypeRouter, URLRouter  # noqa: E402
 
 from apps.messaging.routing import websocket_urlpatterns as messaging_ws_urlpatterns  # noqa: E402
+from apps.notifications.routing import (  # noqa: E402
+    websocket_urlpatterns as notifications_ws_urlpatterns,
+)
 from shared.channels_auth import JWTAuthMiddlewareStack  # noqa: E402
 
-# apps.notifications.routing / apps.reviews.routing are added here as each
-# of those M7 slices lands (see docs/07-delivery-planning/
-# 02-backend-build-milestones.md) — combined the same way
-# messaging_ws_urlpatterns is below.
+# apps.reviews.routing is added here once that M7 slice lands (see
+# docs/07-delivery-planning/02-backend-build-milestones.md), combined the
+# same way notifications_ws_urlpatterns is below.
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
-        "websocket": JWTAuthMiddlewareStack(URLRouter(messaging_ws_urlpatterns)),
+        "websocket": JWTAuthMiddlewareStack(
+            URLRouter(messaging_ws_urlpatterns + notifications_ws_urlpatterns)
+        ),
     }
 )

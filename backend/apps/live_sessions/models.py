@@ -121,6 +121,11 @@ class LiveSessionRegistration(models.Model):
     joined_at = models.DateTimeField(null=True, blank=True)
     left_at = models.DateTimeField(null=True, blank=True)
     attended_duration_seconds = models.PositiveIntegerField(default=0)
+    # Set by tasks.dispatch_reminders once a reminder notification is
+    # queued — without this, the every-5-minutes beat schedule would
+    # re-notify the same registration up to ~12 times before the session's
+    # 1-hour reminder window closes.
+    reminded_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "live_session_registrations"

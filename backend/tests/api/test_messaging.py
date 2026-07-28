@@ -80,6 +80,22 @@ class TestThreadsAndMessagesRest:
         assert response.status_code == 201
         assert Message.objects.filter(thread=thread, body="hi bob").exists()
 
+    def test_post_message_notifies_other_participant_not_sender(self, alice_client, alice, bob):
+        from apps.notifications.models import Notification
+
+        thread = Thread.objects.create(created_by=alice, thread_type=Thread.TYPE_DIRECT)
+        ThreadParticipant.objects.bulk_create(
+            [
+                ThreadParticipant(thread=thread, user=alice),
+                ThreadParticipant(thread=thread, user=bob),
+            ]
+        )
+
+        alice_client.post(f"/api/v1/threads/{thread.id}/messages/", {"body": "hi bob"}, format="json")
+
+        assert Notification.objects.filter(user=bob, type="message", channel="in_app").exists()
+        assert not Notification.objects.filter(user=alice, type="message").exists()
+
     def test_non_participant_cannot_read_thread_messages(self, alice_client, alice, bob, eve):
         thread = Thread.objects.create(created_by=alice, thread_type=Thread.TYPE_DIRECT)
         ThreadParticipant.objects.create(thread=thread, user=alice)

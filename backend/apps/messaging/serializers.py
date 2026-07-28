@@ -10,7 +10,7 @@ class ThreadSerializer(serializers.ModelSerializer):
         model = Thread
         fields = ["id", "thread_type", "subject", "created_by", "created_at", "participant_ids"]
 
-    def get_participant_ids(self, thread):
+    def get_participant_ids(self, thread) -> list[str]:
         return [str(user_id) for user_id in thread.participants.values_list("user_id", flat=True)]
 
 

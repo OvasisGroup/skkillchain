@@ -449,3 +449,30 @@ class TestLiveSessionRegistrationsListing:
         )
 
         assert response.status_code == 403
+
+
+class TestDispatchReminders:
+    def test_sends_reminder_and_marks_reminded_at(self, registration):
+        from apps.live_sessions import tasks
+        from apps.notifications.models import Notification
+
+        count = tasks.dispatch_reminders()
+
+        assert count == 1
+        registration.refresh_from_db()
+        assert registration.reminded_at is not None
+        assert Notification.objects.filter(
+            user=registration.student, type="live_session_reminder"
+        ).exists()
+
+    def test_does_not_re_notify_already_reminded_registration(self, registration):
+        from apps.live_sessions import tasks
+        from apps.notifications.models import Notification
+
+        tasks.dispatch_reminders()
+        Notification.objects.all().delete()
+
+        count = tasks.dispatch_reminders()
+
+        assert count == 0
+        assert not Notification.objects.filter(user=registration.student).exists()
