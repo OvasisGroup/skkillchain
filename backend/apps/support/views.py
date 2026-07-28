@@ -1,6 +1,6 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -26,7 +26,45 @@ def _party_ticket_or_403(user, ticket_id) -> SupportTicket:
     return ticket
 
 
-@extend_schema(tags=["Support"])
+_SUPPORT_TICKET_EXAMPLE = {
+    "id": "d0e1f2a3-...",
+    "requester": "b6a5b6c0-...",
+    "assignee": None,
+    "category": "billing",
+    "priority": "normal",
+    "status": "open",
+    "subject": "Refund not received",
+    "is_sla_breached": False,
+    "created_at": "2026-02-01T14:00:00Z",
+    "updated_at": "2026-02-01T14:00:00Z",
+}
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Support"],
+        description="Lists support tickets the current user is a party to (requester or "
+        "assignee).",
+        examples=[OpenApiExample("Ticket", value=_SUPPORT_TICKET_EXAMPLE, response_only=True)],
+    ),
+    post=extend_schema(
+        tags=["Support"],
+        description="Opens a new support ticket.",
+        examples=[
+            OpenApiExample(
+                "Open ticket",
+                value={
+                    "category": "billing",
+                    "priority": "normal",
+                    "subject": "Refund not received",
+                    "body": "I requested a refund 5 days ago and haven't seen it yet.",
+                },
+                request_only=True,
+            ),
+            OpenApiExample("Created", value=_SUPPORT_TICKET_EXAMPLE, response_only=True),
+        ],
+    ),
+)
 class SupportTicketListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -61,7 +99,32 @@ class SupportTicketListCreateView(generics.ListCreateAPIView):
         return Response(SupportTicketSerializer(ticket).data, status=201)
 
 
-@extend_schema(tags=["Support"])
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Support"],
+        description="Lists messages on a support ticket the current user is a party to.",
+        examples=[
+            OpenApiExample(
+                "Message",
+                value={
+                    "id": "e1f2a3b4-...",
+                    "ticket": "d0e1f2a3-...",
+                    "sender": "b6a5b6c0-...",
+                    "body": "Any update on this?",
+                    "created_at": "2026-02-02T09:00:00Z",
+                },
+                response_only=True,
+            )
+        ],
+    ),
+    post=extend_schema(
+        tags=["Support"],
+        description="Posts a message on a support ticket the current user is a party to.",
+        examples=[
+            OpenApiExample("Reply", value={"body": "Any update on this?"}, request_only=True)
+        ],
+    ),
+)
 class SupportTicketMessageListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -93,7 +156,11 @@ class SupportTicketMessageListCreateView(generics.ListCreateAPIView):
         return Response(SupportTicketMessageSerializer(message).data, status=201)
 
 
-@extend_schema(tags=["Admin"])
+@extend_schema(
+    tags=["Admin"],
+    description="Lists all support tickets across all requesters.",
+    examples=[OpenApiExample("Ticket", value=_SUPPORT_TICKET_EXAMPLE, response_only=True)],
+)
 class AdminSupportTicketListView(generics.ListAPIView):
     serializer_class = SupportTicketSerializer
     permission_classes = [HasPermission]
@@ -106,6 +173,23 @@ class AdminSupportTicketListView(generics.ListAPIView):
     tags=["Admin"],
     request=AdminSupportTicketUpdateSerializer,
     responses={200: SupportTicketSerializer},
+    description="Assigns and/or updates the status/priority of a support ticket.",
+    examples=[
+        OpenApiExample(
+            "Assign and resolve",
+            value={"assignee": "c7b6c7d1-...", "status": "resolved"},
+            request_only=True,
+        ),
+        OpenApiExample(
+            "Updated",
+            value={
+                **_SUPPORT_TICKET_EXAMPLE,
+                "assignee": "c7b6c7d1-...",
+                "status": "resolved",
+            },
+            response_only=True,
+        ),
+    ],
 )
 class AdminSupportTicketUpdateView(generics.UpdateAPIView):
     serializer_class = AdminSupportTicketUpdateSerializer

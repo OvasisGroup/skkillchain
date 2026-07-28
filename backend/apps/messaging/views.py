@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -23,7 +23,40 @@ def _participant_thread_or_403(user, thread_id) -> Thread:
     return thread
 
 
-@extend_schema(tags=["Messaging"])
+_THREAD_EXAMPLE = {
+    "id": "a1b2c3d4-...",
+    "thread_type": "direct",
+    "subject": "",
+    "created_by": "b6a5b6c0-...",
+    "created_at": "2026-02-01T12:00:00Z",
+    "participant_ids": ["b6a5b6c0-...", "c7b6c7d1-..."],
+}
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Messaging"],
+        description="Lists message threads the current user participates in.",
+        examples=[OpenApiExample("Thread", value=_THREAD_EXAMPLE, response_only=True)],
+    ),
+    post=extend_schema(
+        tags=["Messaging"],
+        description="Starts a new message thread with the given participants. Also used for "
+        "the WebSocket-backed real-time channel — see docs/07-delivery-planning M7 for the "
+        "WS auth handshake.",
+        examples=[
+            OpenApiExample(
+                "Create thread",
+                value={
+                    "thread_type": "direct",
+                    "participant_ids": ["c7b6c7d1-5e6f-7a8b-9c0d-1e2f3a4b5c6d"],
+                },
+                request_only=True,
+            ),
+            OpenApiExample("Created", value=_THREAD_EXAMPLE, response_only=True),
+        ],
+    ),
+)
 class ThreadListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -52,7 +85,38 @@ class ThreadListCreateView(generics.ListCreateAPIView):
         return Response(ThreadSerializer(thread).data, status=201)
 
 
-@extend_schema(tags=["Messaging"])
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Messaging"],
+        description="Lists messages in a thread the current user participates in.",
+        examples=[
+            OpenApiExample(
+                "Message",
+                value={
+                    "id": "d4e5f6a7-...",
+                    "thread": "a1b2c3d4-...",
+                    "sender": "b6a5b6c0-...",
+                    "body": "Hi! Quick question about lesson 3.",
+                    "metadata": {},
+                    "created_at": "2026-02-01T12:05:00Z",
+                },
+                response_only=True,
+            )
+        ],
+    ),
+    post=extend_schema(
+        tags=["Messaging"],
+        description="Sends a message in a thread the current user participates in. Also "
+        "broadcast over the thread's WebSocket channel to connected participants in real time.",
+        examples=[
+            OpenApiExample(
+                "Send message",
+                value={"body": "Hi! Quick question about lesson 3."},
+                request_only=True,
+            )
+        ],
+    ),
+)
 class ThreadMessageListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 

@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
 from rest_framework import generics, mixins, permissions
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -17,8 +17,39 @@ from .serializers import (
     ReviewUpdateSerializer,
 )
 
+_REVIEW_EXAMPLE = {
+    "id": "b8c9d0e1-...",
+    "course": "1c2d3e4f-...",
+    "user": "b6a5b6c0-...",
+    "rating": 5,
+    "review_text": "Clear explanations and great pacing.",
+    "is_verified_purchase": True,
+    "created_at": "2026-02-01T12:00:00Z",
+    "updated_at": "2026-02-01T12:00:00Z",
+}
 
-@extend_schema(tags=["Reviews"])
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Reviews"],
+        description="Lists reviews for a course — public, no authentication required.",
+        examples=[OpenApiExample("Review", value=_REVIEW_EXAMPLE, response_only=True)],
+    ),
+    post=extend_schema(
+        tags=["Reviews"],
+        description="Posts a review for a course. Only students with a completed enrollment "
+        "may review it (so is_verified_purchase is always true); one review per user per "
+        "course — PATCH the existing one instead of re-posting.",
+        examples=[
+            OpenApiExample(
+                "Create review",
+                value={"rating": 5, "review_text": "Clear explanations and great pacing."},
+                request_only=True,
+            ),
+            OpenApiExample("Created", value=_REVIEW_EXAMPLE, response_only=True),
+        ],
+    ),
+)
 class CourseReviewListCreateView(generics.ListCreateAPIView):
     def get_permissions(self):
         # Reviews are public reading material for prospective students
@@ -54,7 +85,20 @@ class CourseReviewListCreateView(generics.ListCreateAPIView):
         return Response(ReviewSerializer(review).data, status=201)
 
 
-@extend_schema(tags=["Reviews"])
+@extend_schema_view(
+    patch=extend_schema(
+        tags=["Reviews"],
+        description="Edits the current user's own review. 403 if it belongs to someone else.",
+        examples=[
+            OpenApiExample("Update rating", value={"rating": 4}, request_only=True),
+            OpenApiExample("Updated", value={**_REVIEW_EXAMPLE, "rating": 4}, response_only=True),
+        ],
+    ),
+    delete=extend_schema(
+        tags=["Reviews"],
+        description="Deletes the current user's own review. 403 if it belongs to someone else.",
+    ),
+)
 class ReviewUpdateDestroyView(
     mixins.UpdateModelMixin, mixins.DestroyModelMixin, generics.GenericAPIView
 ):
@@ -96,7 +140,37 @@ class ReviewUpdateDestroyView(
         instance.delete()
 
 
-@extend_schema(tags=["Reviews"])
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Reviews"],
+        description="Lists discussion posts for a course — public, no authentication required.",
+        examples=[
+            OpenApiExample(
+                "Post",
+                value={
+                    "id": "c9d0e1f2-...",
+                    "course": "1c2d3e4f-...",
+                    "user": "b6a5b6c0-...",
+                    "body": "Does anyone have tips for exercise 3?",
+                    "created_at": "2026-02-01T13:00:00Z",
+                },
+                response_only=True,
+            )
+        ],
+    ),
+    post=extend_schema(
+        tags=["Reviews"],
+        description="Posts a discussion comment on a course. Requires the current user to be "
+        "enrolled (any status, not necessarily completed).",
+        examples=[
+            OpenApiExample(
+                "Create post",
+                value={"body": "Does anyone have tips for exercise 3?"},
+                request_only=True,
+            )
+        ],
+    ),
+)
 class CourseDiscussionListCreateView(generics.ListCreateAPIView):
     def get_permissions(self):
         if self.request.method == "POST":
