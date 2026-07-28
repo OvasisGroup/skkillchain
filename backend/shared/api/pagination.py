@@ -14,3 +14,15 @@ class DefaultCursorPagination(CursorPagination):
     max_page_size = 100
     ordering = "-created_at"
     cursor_query_param = "cursor"
+
+
+class EnrolledAtCursorPagination(DefaultCursorPagination):
+    """For models with `enrolled_at` instead of `created_at` (Enrollment)."""
+
+    ordering = "-enrolled_at"
+
+
+class IssuedAtCursorPagination(DefaultCursorPagination):
+    """For models with `issued_at` instead of `created_at` (Certificate)."""
+
+    ordering = "-issued_at"

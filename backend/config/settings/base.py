@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.catalog",
     "apps.content",
+    "apps.learning",
     "shared.health",
 ]
 
@@ -168,6 +169,15 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Enterprise learning platform REST API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Course.status and Enrollment.status are both named "status" with
+    # different choice sets; drf-spectacular auto-resolves the collision
+    # with a hash-suffixed name (e.g. "Status009Enum") but still emits a
+    # warning for it, which --fail-on-warn (CI) treats as fatal. Naming
+    # both explicitly is the actual fix, not just quieting the warning.
+    "ENUM_NAME_OVERRIDES": {
+        "CourseStatusEnum": "apps.catalog.models.Course.STATUS_CHOICES",
+        "EnrollmentStatusEnum": "apps.learning.models.Enrollment.STATUS_CHOICES",
+    },
 }
 
 # FIELD_ENCRYPTION_KEY is deliberately NOT set here, same reasoning as
@@ -177,3 +187,7 @@ SPECTACULAR_SETTINGS = {
 # verifying provider tokens — see apps/identity/oauth/).
 GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 APPLE_OAUTH_CLIENT_ID = env("APPLE_OAUTH_CLIENT_ID", default="")
+
+# Web frontend origin — used to build user-facing links (e.g. a
+# certificate's QR verification URL) that point at the app, not the API.
+PUBLIC_APP_URL = env("PUBLIC_APP_URL", default="http://localhost:3000")

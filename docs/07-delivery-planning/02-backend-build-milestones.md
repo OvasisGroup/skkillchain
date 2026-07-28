@@ -154,27 +154,39 @@ no search yet to measure.
 
 ---
 
-### M4 — Enrollment, Learning Experience, and Live Sessions
+### M4 — Enrollment, Learning Experience, and Live Sessions — learning core done, live_sessions deferred
 **Sprint 4–5** · Apps: `learning`, `live_sessions`
 **Requirements**: FR-LRN-001 – FR-LRN-003, FR-LIVE-001 – FR-LIVE-008
 
-- `enrollments`, `progress_tracking`, `lesson_notes`, `bookmarks`, `wishlists`,
-  `recently_viewed`, `certificates` (QR payload + PDF generation + verify endpoint).
-- `conferencing_accounts` (encrypted OAuth tokens), `live_sessions`, `live_session_registrations`,
-  `live_session_recordings`; the `ConferencingProvider` adapter for Zoom and Google Meet per
-  the [core flows](../04-platform-structure/02-core-flows.md#9-live-session-scheduling-and-join-flow).
-- Join-window enforcement as a server-side check on every `/live-sessions/{id}/join` call, not a
-  client-side hide/show.
-- Celery Beat tasks: reminder dispatch, and the Google Meet recording-availability poll (Zoom
-  gets its recording via webhook in M6).
+**Built and verified end-to-end** (enroll → note/bookmark → progress two lessons to 100% →
+enrollment auto-completes → certificate auto-issued → publicly verifiable with no auth, all
+exercised over real HTTP):
+- `Enrollment` (direct-enroll today — no payment gate, since Commerce/checkout is M6; a
+  purchase-driven enrollment there just uses `source="purchase"` instead of a different model),
+  `ProgressTracking`, `LessonNote`, `Bookmark`, `Wishlist`/`WishlistItem`, `RecentlyViewed`.
+- `Certificate` issuance is real and automatic: `apps.learning.services.maybe_complete_enrollment`
+  runs after every progress update, and once every lesson in the course has a 100% progress row,
+  it marks the enrollment complete and issues a certificate with a real unique `certificate_uid`
+  and a `qr_payload` verification URL. `pdf_key` stays blank — see deferred scope below.
+- Notes/bookmarks/progress all require the student to actually be enrolled in the lesson's
+  course (403 otherwise, tested).
 
-**Security checklist**: `conferencing_accounts.*_token_encrypted` never appears in any API
-response or log line (add a test asserting this); join URLs are never returned to unregistered
-or out-of-window requesters, verified with an explicit negative test.
+**Deferred to a follow-up** (a distinct, mostly-independent subsystem — same reasoning as every
+prior milestone's split):
+- **`live_sessions` app in full**: conferencing OAuth (Zoom/Google Meet), `live_sessions`/
+  `live_session_registrations`/`live_session_recordings`, join-window gating.
+- **Real Celery infrastructure**: no `config/celery.py` app instance or worker/beat task exists
+  yet anywhere in the codebase, despite the RabbitMQ container running since M0. live_sessions
+  needs it for reminder dispatch and the Google Meet recording poll, so standing up Celery for
+  real happens as part of that slice rather than as a preparatory step with nothing using it yet.
+- **Certificate PDF rendering + storage**: `pdf_key` is a real column with nothing writing to it
+  — no S3/file-storage integration exists anywhere in the codebase yet either.
 
-**Exit criteria**: enroll → resume playback → earn certificate works end-to-end against seed
-data; a live session's join link is provably unavailable one minute before the join window
-opens and provably available one minute after.
+**Security checklist**: N/A yet for `conferencing_accounts` — moves to the live_sessions slice.
+
+**Exit criteria**: revised to match the sliced scope — "enroll → resume playback → earn
+certificate" is done and verified live. The live-session join-window clause moves to the
+live_sessions follow-up.
 
 ---
 
