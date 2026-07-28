@@ -288,7 +288,7 @@ production launch of the coding-exercise feature, not silently dropped.
 
 ---
 
-### M6 — Commerce, Payments, and Payouts — commerce/billing/payouts done, affiliates deferred
+### M6 — Commerce, Payments, and Payouts — done, including affiliates
 **Sprint 4 (adapters) + Sprint 6 (full ledger)** · Apps: `commerce`, `billing`, `payouts`, `affiliates`
 **Requirements**: FR-PAY-001 – FR-PAY-004
 
@@ -399,8 +399,13 @@ the wallet, and a raw database query independently re-summing the payout's linke
 transactions confirmed \$70.00 — matching `amount_gross` exactly, computed by a completely
 separate code path than the one that set it.
 
-**Deferred to a follow-up slice**: `affiliates` (affiliate_accounts/referrals/commissions) — a
-distinct, mostly-independent subsystem, same reasoning as every prior milestone's split.
+**`affiliates` (accounts/referrals/commissions/wallet/payouts) — built and verified**: register
+as an affiliate, capture a referral at checkout via `referral_code`, credit a commission on the
+referred order at `finalize_order_payment` time, and sweep the affiliate's wallet through the
+same `payouts.services.request_payout` path instructor payouts use (`owner_type=Wallet
+.OWNER_AFFILIATE`), marking the swept commissions paid. Covered by `tests/api/
+test_affiliates.py` (9 tests) and documented in full (every operation has a real description and
+example — see the M12b OpenAPI documentation pass).
 
 **Exit criteria**: met in full — the coupon+gift-card reconciliation clause (verified live,
 including under a duplicate webhook delivery) and the instructor-payout reconciliation clause
