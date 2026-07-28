@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "apps.reviews",
     "apps.support",
     "apps.ai",
+    "apps.recommendations",
     "shared.health",
 ]
 
