@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "apps.recommendations",
     "apps.moderation",
     "apps.platform_settings",
+    "apps.analytics",
     "shared.health",
 ]
 

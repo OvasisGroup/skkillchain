@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.affiliates.models import AffiliateAccount, AffiliateCommission, AffiliateReferral
+from apps.analytics.services import record_analytics_event
 from apps.billing.models import Plan, Subscription
 from apps.catalog.models import Course
 from apps.learning.models import Enrollment
@@ -191,6 +192,15 @@ def finalize_order_payment(order: Order) -> None:
 
     order.status = Order.STATUS_PAID
     order.save(update_fields=["status"])
+    record_analytics_event(
+        "order.paid",
+        actor=order.buyer,
+        payload={
+            "order_id": str(order.id),
+            "total_amount": str(order.total_amount),
+            "currency": order.currency,
+        },
+    )
 
     Invoice.objects.get_or_create(
         order=order, defaults={"invoice_number": _generate_invoice_number()}

@@ -6,6 +6,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.analytics.services import record_analytics_event
 from apps.audit.services import record_event
 from apps.catalog.models import Course
 from apps.content.models import Lesson
@@ -66,6 +67,7 @@ class EnrollView(APIView):
             request=request,
             payload={"course_id": str(course.id)},
         )
+        record_analytics_event("enrollment.created", actor=request.user, course=course)
         return Response(EnrollmentSerializer(enrollment).data, status=status.HTTP_201_CREATED)
 
 
@@ -151,9 +153,22 @@ class ProgressUpdateView(APIView):
             },
         )
         RecentlyViewed.objects.update_or_create(user=request.user, course=lesson.section.course)
+        record_analytics_event(
+            "lesson.progress",
+            actor=request.user,
+            course=lesson.section.course,
+            payload={
+                "lesson_id": str(lesson.id),
+                "percent_complete": data["percent_complete"],
+                "last_position_seconds": data["last_position_seconds"],
+            },
+        )
 
         certificate = maybe_complete_enrollment(enrollment)
         if certificate is not None:
+            record_analytics_event(
+                "enrollment.completed", actor=request.user, course=lesson.section.course
+            )
             record_event(
                 actor=request.user,
                 action="enrollment.complete",
