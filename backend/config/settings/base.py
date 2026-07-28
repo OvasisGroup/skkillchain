@@ -20,13 +20,19 @@ env_file = BASE_DIR / ".env"
 if env_file.exists():
     environ.Env.read_env(str(env_file))
 
+# "daphne" must be first — it patches `runserver` to serve ASGI (incl.
+# WebSockets) in dev; without it runserver stays plain-WSGI even with
+# "channels" installed. See docs/07-delivery-planning/02-backend-build-
+# milestones.md M7 and config/asgi.py.
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "channels",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
@@ -43,6 +49,7 @@ INSTALLED_APPS = [
     "apps.commerce",
     "apps.payouts",
     "apps.affiliates",
+    "apps.messaging",
     "shared.health",
 ]
 
@@ -87,6 +94,18 @@ CACHES = {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": env("REDIS_URL"),
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+    }
+}
+
+# Channels (M7 realtime — messaging/notifications/discussions): reuses the
+# same Redis instance as the cache and Celery result backend above, no new
+# infra. This is the layer group_send()/group_add() calls travel over, so
+# it must be reachable from both the ASGI process and any Celery worker
+# that pushes a live notification.
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [env("REDIS_URL")]},
     }
 }
 
@@ -279,3 +298,23 @@ PLATFORM_COMMISSION_RATE = Decimal(env("PLATFORM_COMMISSION_RATE", default="0.30
 # total_amount, credited to the affiliate's wallet on payment success.
 # Same "no documented source of truth" caveat as PLATFORM_COMMISSION_RATE.
 AFFILIATE_DEFAULT_COMMISSION_RATE = Decimal(env("AFFILIATE_DEFAULT_COMMISSION_RATE", default="10.00"))
+
+# Outbound email (M7 notifications) — console backend by default so dev/
+# test never accidentally sends real mail; stage/prod override EMAIL_BACKEND
+# to an SMTP backend via env once real credentials exist. See
+# apps/notifications/providers/email.py.
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@skillchain.example")
+
+# SMS/push notification channels (M7): no vendor is named anywhere in the
+# SRS/product docs (unlike Stripe/PayPal/etc. for payments, which each have
+# a documented required integration). apps/notifications/providers/sms.py
+# and push.py are real adapter interfaces with a log-only implementation
+# behind them, pending an actual vendor decision (e.g. Twilio, FCM) — same
+# "identify but don't fake a send" precedent as
+# apps/live_sessions/tasks.py's dispatch_reminders before this milestone.

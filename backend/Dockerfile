@@ -33,4 +33,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/healthz/live/ || exit 1
 
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4"]
+# Daphne (ASGI) replaces gunicorn/WSGI as of M7 — WebSocket upgrades
+# (messaging/notifications/discussions) can't be served over WSGI.
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
