@@ -58,6 +58,7 @@ dev = [
     "pytest-cov>=5.0,<8.0",
     "types-requests>=2.32,<2.33",
     "pip-audit>=2.7,<3.0",
+    "schemathesis>=4.24,<5.0",
 ]
 
 [tool.setuptools]

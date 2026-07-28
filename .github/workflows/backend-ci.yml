@@ -97,6 +97,10 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -e .[dev]
+      # tests/contract/ (M12) is a real schemathesis-generated contract
+      # test against docs/03-api/02-openapi.yaml, run here (not the lint
+      # job) since it needs a live DB — no separate step needed, it's
+      # just another file under tests/.
       - run: python -m pytest
 
   dependency-scan:

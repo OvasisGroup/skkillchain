@@ -33,6 +33,7 @@ paths:
     post:
       tags: [Auth]
       summary: Register user
+      security: []
       requestBody:
         required: true
         content:
@@ -46,6 +47,7 @@ paths:
     post:
       tags: [Auth]
       summary: Login with credentials
+      security: []
       requestBody:
         required: true
         content:
@@ -71,6 +73,7 @@ paths:
     post:
       tags: [Auth]
       summary: Refresh access token
+      security: []
       responses:
         '200': { description: Token refreshed }
   /auth/logout:
@@ -108,6 +111,7 @@ paths:
     post:
       tags: [Auth]
       summary: Complete a login that returned mfa_required — exchanges mfa_token + code for real tokens
+      security: []
       requestBody:
         required: true
         content:
@@ -131,6 +135,7 @@ paths:
         and sends the resulting token here for verification — see
         docs/04-platform-structure/02-core-flows.md §8 for why this platform uses a
         token-exchange pattern rather than a server-driven redirect flow.
+      security: []
       parameters:
         - in: path
           name: provider
@@ -178,6 +183,7 @@ paths:
     get:
       tags: [Courses]
       summary: List courses
+      security: []
       parameters:
         - in: query
           name: cursor
@@ -202,6 +208,7 @@ paths:
     get:
       tags: [Courses]
       summary: Get course details
+      security: []
       parameters:
         - in: path
           name: courseId
@@ -218,6 +225,7 @@ paths:
     get:
       tags: [Courses]
       summary: Get free preview content for a course
+      security: []
       parameters:
         - in: path
           name: courseId
@@ -229,12 +237,14 @@ paths:
     get:
       tags: [Courses]
       summary: List categories
+      security: []
       responses:
         '200': { description: Category list }
   /tags:
     get:
       tags: [Courses]
       summary: List tags
+      security: []
       responses:
         '200': { description: Tag list }
   # NOTE: a dedicated faceted /search/courses endpoint (text/rating/price
@@ -551,6 +561,7 @@ paths:
     get:
       tags: [Certificates]
       summary: Verify certificate
+      security: []
       parameters:
         - in: path
           name: certificateUid
@@ -575,6 +586,7 @@ paths:
     get:
       tags: [LiveSessions]
       summary: OAuth callback completing the conferencing account connect flow
+      security: []
       parameters:
         - in: path
           name: provider
@@ -658,6 +670,7 @@ paths:
     get:
       tags: [LiveSessions]
       summary: List upcoming and past live sessions for a course
+      security: []
       parameters:
         - in: path
           name: courseId
@@ -898,12 +911,14 @@ paths:
     get:
       tags: [Payments]
       summary: List available subscription plans
+      security: []
       responses:
         '200': { description: Plan list }
   /gift-cards/{code}:
     get:
       tags: [Payments]
       summary: Look up gift card balance by code
+      security: []
       parameters:
         - in: path
           name: code
@@ -963,6 +978,7 @@ paths:
     get:
       tags: [Reviews]
       summary: List reviews
+      security: []
       parameters:
         - in: path
           name: courseId
@@ -1005,6 +1021,7 @@ paths:
     get:
       tags: [Reviews]
       summary: List course discussion threads
+      security: []
       parameters:
         - in: path
           name: courseId
@@ -1493,6 +1510,7 @@ paths:
     get:
       tags: [AI]
       summary: Natural-language semantic search across the catalog
+      security: []
       parameters:
         - in: query
           name: q
@@ -1513,6 +1531,7 @@ paths:
     post:
       tags: [Webhooks]
       summary: Payment provider event webhook
+      security: []
       description: >-
         Signature-verified per provider (see each provider adapter's
         verify_and_parse_webhook). Events are deduplicated by
@@ -1530,6 +1549,7 @@ paths:
     post:
       tags: [Webhooks]
       summary: M-Pesa event webhook
+      security: []
       description: >-
         M-Pesa's callback URL has no signature header, so the callback
         path itself carries a per-integration secret instead
