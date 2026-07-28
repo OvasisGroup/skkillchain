@@ -32,3 +32,9 @@ class StartedAtCursorPagination(DefaultCursorPagination):
     """For models with `started_at` instead of `created_at` (AiChatSession)."""
 
     ordering = "-started_at"
+
+
+class AppliedAtCursorPagination(DefaultCursorPagination):
+    """For models with `applied_at` instead of `created_at` (InstructorApplication)."""
+
+    ordering = "-applied_at"
