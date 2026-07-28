@@ -55,7 +55,11 @@ class AiTutorSessionCreateView(generics.ListCreateAPIView):
     pagination_class = StartedAtCursorPagination
 
     def get_serializer_class(self):
-        return AiChatSessionCreateSerializer if self.request.method == "POST" else AiChatSessionSerializer
+        return (
+            AiChatSessionCreateSerializer
+            if self.request.method == "POST"
+            else AiChatSessionSerializer
+        )
 
     def get_queryset(self):
         return AiChatSession.objects.filter(user=self.request.user)
@@ -75,7 +79,9 @@ class AiTutorMessageCreateView(generics.ListCreateAPIView):
 
     def get_serializer_class(self):
         return (
-            AiChatMessageCreateSerializer if self.request.method == "POST" else AiChatMessageSerializer
+            AiChatMessageCreateSerializer
+            if self.request.method == "POST"
+            else AiChatMessageSerializer
         )
 
     def get_queryset(self):
@@ -87,7 +93,9 @@ class AiTutorMessageCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            reply = services.send_chat_message(session, request.user, serializer.validated_data["body"])
+            reply = services.send_chat_message(
+                session, request.user, serializer.validated_data["body"]
+            )
         except AIProviderError as exc:
             raise ValidationError(f"AI tutor request failed: {exc}") from exc
         return Response(AiChatMessageSerializer(reply).data, status=201)
@@ -121,7 +129,10 @@ class AiCourseGenerateQuizView(APIView):
     def post(self, request, course_id):
         course = _owned_course_or_403(course_id, request.user)
         job = services.enqueue_generation_job(
-            request.user, job_type=AiGenerationJob.JOB_QUIZ, source_type="course", source_id=course.id
+            request.user,
+            job_type=AiGenerationJob.JOB_QUIZ,
+            source_type="course",
+            source_id=course.id,
         )
         return Response(AiGenerationJobSerializer(job).data, status=202)
 
@@ -134,7 +145,10 @@ class AiLessonGenerateSummaryView(APIView):
     def post(self, request, lesson_id):
         lesson = _enrolled_lesson_or_403(lesson_id, request.user)
         job = services.enqueue_generation_job(
-            request.user, job_type=AiGenerationJob.JOB_SUMMARY, source_type="lesson", source_id=lesson.id
+            request.user,
+            job_type=AiGenerationJob.JOB_SUMMARY,
+            source_type="lesson",
+            source_id=lesson.id,
         )
         return Response(AiGenerationJobSerializer(job).data, status=202)
 
@@ -167,7 +181,10 @@ class AiVideoGenerateTranscriptView(APIView):
 
     def post(self, request, video_id: uuid.UUID):
         job = services.enqueue_generation_job(
-            request.user, job_type=AiGenerationJob.JOB_TRANSCRIPT, source_type="video", source_id=video_id
+            request.user,
+            job_type=AiGenerationJob.JOB_TRANSCRIPT,
+            source_type="video",
+            source_id=video_id,
         )
         return Response(AiGenerationJobSerializer(job).data, status=202)
 
@@ -181,7 +198,10 @@ class AiVideoGenerateSubtitlesView(APIView):
 
     def post(self, request, video_id: uuid.UUID):
         job = services.enqueue_generation_job(
-            request.user, job_type=AiGenerationJob.JOB_SUBTITLES, source_type="video", source_id=video_id
+            request.user,
+            job_type=AiGenerationJob.JOB_SUBTITLES,
+            source_type="video",
+            source_id=video_id,
         )
         return Response(AiGenerationJobSerializer(job).data, status=202)
 

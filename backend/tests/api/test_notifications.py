@@ -55,7 +55,10 @@ class TestDispatchNotificationTask:
 
     def test_dispatch_renders_active_template_with_context(self, alice):
         NotificationTemplate.objects.create(
-            code="welcome", channel="email", subject_template="Hi {name}", body_template="Welcome, {name}!"
+            code="welcome",
+            channel="email",
+            subject_template="Hi {name}",
+            body_template="Welcome, {name}!",
         )
         notification = Notification.objects.create(
             user=alice, type="system", channel="email", template_code="welcome"
@@ -138,7 +141,9 @@ class TestNotificationsRest:
 class TestNotificationsWebsocket:
     @pytest.mark.django_db(transaction=True)
     async def test_in_app_notification_is_pushed_live(self, alice):
-        token = await database_sync_to_async(lambda: str(RefreshToken.for_user(alice).access_token))()
+        token = await database_sync_to_async(
+            lambda: str(RefreshToken.for_user(alice).access_token)
+        )()
         ws = WebsocketCommunicator(application, f"/ws/notifications/?token={token}")
         try:
             connected, _ = await ws.connect()

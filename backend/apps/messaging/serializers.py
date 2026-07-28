@@ -19,9 +19,7 @@ class ThreadCreateSerializer(serializers.Serializer):
         choices=Thread.THREAD_TYPE_CHOICES, default=Thread.TYPE_DIRECT
     )
     subject = serializers.CharField(required=False, allow_blank=True, default="")
-    participant_ids = serializers.ListField(
-        child=serializers.UUIDField(), allow_empty=False
-    )
+    participant_ids = serializers.ListField(child=serializers.UUIDField(), allow_empty=False)
 
 
 class MessageSerializer(serializers.ModelSerializer):

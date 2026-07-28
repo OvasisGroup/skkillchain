@@ -29,7 +29,13 @@ class EngagementDailyAggregateAdmin(admin.ModelAdmin):
 
 @admin.register(CourseCompletionAggregate)
 class CourseCompletionAggregateAdmin(admin.ModelAdmin):
-    list_display = ["course", "period_start", "enrollments_count", "completions_count", "completion_rate"]
+    list_display = [
+        "course",
+        "period_start",
+        "enrollments_count",
+        "completions_count",
+        "completion_rate",
+    ]
 
 
 @admin.register(LessonWatchTimeAggregate)

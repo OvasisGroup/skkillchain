@@ -14,7 +14,9 @@ urlpatterns = [
         views.StudentEngagementReportView.as_view(),
         name="analytics-student-engagement",
     ),
-    path("analytics/completion/", views.CompletionReportView.as_view(), name="analytics-completion"),
+    path(
+        "analytics/completion/", views.CompletionReportView.as_view(), name="analytics-completion"
+    ),
     path("analytics/watch-time/", views.WatchTimeReportView.as_view(), name="analytics-watch-time"),
     path("analytics/drop-off/", views.DropOffReportView.as_view(), name="analytics-drop-off"),
     path(

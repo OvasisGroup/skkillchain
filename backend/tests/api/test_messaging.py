@@ -91,7 +91,9 @@ class TestThreadsAndMessagesRest:
             ]
         )
 
-        alice_client.post(f"/api/v1/threads/{thread.id}/messages/", {"body": "hi bob"}, format="json")
+        alice_client.post(
+            f"/api/v1/threads/{thread.id}/messages/", {"body": "hi bob"}, format="json"
+        )
 
         assert Notification.objects.filter(user=bob, type="message", channel="in_app").exists()
         assert not Notification.objects.filter(user=alice, type="message").exists()

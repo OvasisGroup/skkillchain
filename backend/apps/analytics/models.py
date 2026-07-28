@@ -67,7 +67,9 @@ class RevenueDailyAggregate(models.Model):
 
 class EngagementDailyAggregate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="engagement_aggregates")
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="engagement_aggregates"
+    )
     period_start = models.DateField()
     period_end = models.DateField()
     active_students_count = models.PositiveIntegerField(default=0)
@@ -90,7 +92,9 @@ class EngagementDailyAggregate(models.Model):
 
 class CourseCompletionAggregate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="completion_aggregates")
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="completion_aggregates"
+    )
     period_start = models.DateField()
     period_end = models.DateField()
     enrollments_count = models.PositiveIntegerField(default=0)
@@ -119,7 +123,9 @@ class LessonWatchTimeAggregate(models.Model):
     # best-effort figure (the furthest position a student reached), not a
     # true accumulated-seconds-watched metric.
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="watch_time_aggregates")
+    lesson = models.ForeignKey(
+        Lesson, on_delete=models.CASCADE, related_name="watch_time_aggregates"
+    )
     period_start = models.DateField()
     period_end = models.DateField()
     total_watch_seconds = models.PositiveBigIntegerField(default=0)

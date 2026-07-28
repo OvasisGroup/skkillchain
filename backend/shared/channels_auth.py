@@ -12,14 +12,17 @@ from rest_framework_simplejwt.tokens import AccessToken
 @database_sync_to_async
 def _user_from_access_token(raw_token: str):
     try:
-        validated = AccessToken(raw_token)
+        # simplejwt's own type stub annotates `token` as `Optional["Token"]`,
+        # but its runtime contract (see tokens.py's __init__ docstring/body)
+        # is that this is the raw encoded string — a stub inaccuracy, not a
+        # real type error here.
+        validated = AccessToken(raw_token)  # type: ignore[arg-type]
     except TokenError:
         return AnonymousUser()
     User = get_user_model()
+    user_id: str = validated[settings.SIMPLE_JWT["USER_ID_CLAIM"]]  # type: ignore[index]
     try:
-        return User.objects.get(
-            id=validated[settings.SIMPLE_JWT["USER_ID_CLAIM"]], is_active=True
-        )
+        return User.objects.get(id=user_id, is_active=True)
     except User.DoesNotExist:
         return AnonymousUser()
 

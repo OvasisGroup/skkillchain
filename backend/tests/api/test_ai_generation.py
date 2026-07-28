@@ -46,7 +46,11 @@ def student_client(api_client, student):
 @pytest.fixture
 def course(instructor):
     c = Course.objects.create(
-        owner=instructor, title="Gen Course", summary="s", description="d", price_amount=Decimal("10.00")
+        owner=instructor,
+        title="Gen Course",
+        summary="s",
+        description="d",
+        price_amount=Decimal("10.00"),
     )
     c.status = Course.STATUS_PUBLISHED
     c.save(update_fields=["status"])
@@ -121,14 +125,15 @@ class TestRunGenerationJob:
         from apps.ai.models import AiGeneratedContent
 
         def fake_send_message(system, user_message, *, model, max_tokens):
-            return json.dumps(
-                [{"question": "Q1?", "options": ["a", "b"], "correct_index": 0}]
-            )
+            return json.dumps([{"question": "Q1?", "options": ["a", "b"], "correct_index": 0}])
 
         monkeypatch.setattr(anthropic_client, "send_message", fake_send_message)
 
         job = AiGenerationJob.objects.create(
-            job_type=AiGenerationJob.JOB_QUIZ, source_type="course", source_id=course.id, requested_by=instructor
+            job_type=AiGenerationJob.JOB_QUIZ,
+            source_type="course",
+            source_id=course.id,
+            requested_by=instructor,
         )
         tasks.dispatch_generation_job(str(job.id))
 
@@ -159,7 +164,10 @@ class TestRunGenerationJob:
         monkeypatch.setattr(anthropic_client, "send_message", lambda *a, **k: "not json")
 
         job = AiGenerationJob.objects.create(
-            job_type=AiGenerationJob.JOB_QUIZ, source_type="course", source_id=course.id, requested_by=instructor
+            job_type=AiGenerationJob.JOB_QUIZ,
+            source_type="course",
+            source_id=course.id,
+            requested_by=instructor,
         )
         tasks.dispatch_generation_job(str(job.id))
 

@@ -21,7 +21,7 @@ def _has_any_enrollment(user, course_id) -> bool:
 
 def _course_system_prompt(course) -> str:
     return (
-        f"You are an AI tutor for the course \"{course.title}\".\n"
+        f'You are an AI tutor for the course "{course.title}".\n'
         f"Course summary: {course.summary}\n"
         f"Course description: {course.description}\n\n"
         "Only answer questions about this course's own content. If asked "
@@ -92,7 +92,9 @@ def suggest_assignment_grade(submission):
     submission.ai_suggested_grade = grade
     submission.ai_suggested_feedback = feedback
     submission.ai_suggested_at = timezone.now()
-    submission.save(update_fields=["ai_suggested_grade", "ai_suggested_feedback", "ai_suggested_at"])
+    submission.save(
+        update_fields=["ai_suggested_grade", "ai_suggested_feedback", "ai_suggested_at"]
+    )
     return submission
 
 
@@ -164,7 +166,7 @@ def _generate_flashcards_content(lesson) -> list[dict]:
     course = lesson.section.course
     system = (
         "You write flashcards (front/back) for students studying a "
-        'lesson. Respond with ONLY a JSON array of objects shaped like '
+        "lesson. Respond with ONLY a JSON array of objects shaped like "
         '{"front": "...", "back": "..."} — no other text.'
     )
     user_message = (

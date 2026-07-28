@@ -44,7 +44,9 @@ class TestSupportTicketCreate:
         assert response.data["status"] == "open"
         ticket = SupportTicket.objects.get(id=response.data["id"])
         assert ticket.requester == alice
-        assert SupportTicketMessage.objects.filter(ticket=ticket, body="I was charged twice.").exists()
+        assert SupportTicketMessage.objects.filter(
+            ticket=ticket, body="I was charged twice."
+        ).exists()
 
     def test_list_only_shows_own_tickets(self, alice_client, alice, eve):
         mine = SupportTicket.objects.create(requester=alice, subject="mine")

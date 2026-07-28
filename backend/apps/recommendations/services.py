@@ -17,7 +17,9 @@ def _enrolled_course_ids(user) -> list:
 
 def _engaged_category_ids(enrolled_course_ids: list) -> list:
     return list(
-        Category.objects.filter(courses__id__in=enrolled_course_ids).values_list("id", flat=True).distinct()
+        Category.objects.filter(courses__id__in=enrolled_course_ids)
+        .values_list("id", flat=True)
+        .distinct()
     )
 
 
@@ -63,6 +65,10 @@ def search_courses(query: str, limit: int = 20):
     # in this stack, so true semantic search is out of scope here.
     return (
         Course.objects.filter(status=Course.STATUS_PUBLISHED)
-        .filter(Q(title__icontains=query) | Q(summary__icontains=query) | Q(description__icontains=query))
+        .filter(
+            Q(title__icontains=query)
+            | Q(summary__icontains=query)
+            | Q(description__icontains=query)
+        )
         .distinct()[:limit]
     )

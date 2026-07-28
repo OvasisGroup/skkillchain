@@ -119,7 +119,9 @@ class CourseDiscussionListCreateView(generics.ListCreateAPIView):
         course = get_object_or_404(Course, id=self.kwargs["course_id"])
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        post = services.create_discussion_post(course, request.user, serializer.validated_data["body"])
+        post = services.create_discussion_post(
+            course, request.user, serializer.validated_data["body"]
+        )
         record_event(
             actor=request.user,
             action="discussion.create",

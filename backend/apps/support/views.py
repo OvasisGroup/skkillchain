@@ -80,7 +80,9 @@ class SupportTicketMessageListCreateView(generics.ListCreateAPIView):
         ticket = _party_ticket_or_403(request.user, self.kwargs["ticket_id"])
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        message = services.add_ticket_message(ticket, request.user, serializer.validated_data["body"])
+        message = services.add_ticket_message(
+            ticket, request.user, serializer.validated_data["body"]
+        )
         record_event(
             actor=request.user,
             action="support_ticket.reply",
@@ -101,7 +103,9 @@ class AdminSupportTicketListView(generics.ListAPIView):
 
 
 @extend_schema(
-    tags=["Admin"], request=AdminSupportTicketUpdateSerializer, responses={200: SupportTicketSerializer}
+    tags=["Admin"],
+    request=AdminSupportTicketUpdateSerializer,
+    responses={200: SupportTicketSerializer},
 )
 class AdminSupportTicketUpdateView(generics.UpdateAPIView):
     serializer_class = AdminSupportTicketUpdateSerializer

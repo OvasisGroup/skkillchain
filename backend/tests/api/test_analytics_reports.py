@@ -67,7 +67,9 @@ def student_client(api_client, student):
 
 @pytest.fixture
 def course(instructor):
-    c = Course.objects.create(owner=instructor, title="Analytics Course", price_amount=Decimal("100.00"))
+    c = Course.objects.create(
+        owner=instructor, title="Analytics Course", price_amount=Decimal("100.00")
+    )
     c.status = Course.STATUS_PUBLISHED
     c.save(update_fields=["status"])
     return c
@@ -90,7 +92,9 @@ class TestAggregateRevenue:
         )
         from apps.commerce.models import Refund
 
-        Refund.objects.create(payment=payment, amount=Decimal("20.00"), status=Refund.STATUS_SUCCEEDED)
+        Refund.objects.create(
+            payment=payment, amount=Decimal("20.00"), status=Refund.STATUS_SUCCEEDED
+        )
 
         count = aggregation.aggregate_revenue(TODAY, TODAY + timedelta(days=1))
 
@@ -114,7 +118,10 @@ class TestAggregateEngagement:
 class TestAggregateCompletion:
     def test_cumulative_snapshot(self, student, course):
         Enrollment.objects.create(
-            student=student, course=course, status=Enrollment.STATUS_COMPLETED, completed_at=timezone.now()
+            student=student,
+            course=course,
+            status=Enrollment.STATUS_COMPLETED,
+            completed_at=timezone.now(),
         )
 
         count = aggregation.aggregate_completion(TODAY, TODAY + timedelta(days=1))
@@ -150,9 +157,14 @@ class TestAggregateWatchTimeAndDropOff:
 
 class TestAggregateInstructorEarnings:
     def test_sums_instructor_credit_transactions(self, instructor):
-        wallet = Wallet.objects.create(owner_type=Wallet.OWNER_INSTRUCTOR, owner_id=instructor.id, currency="USD")
+        wallet = Wallet.objects.create(
+            owner_type=Wallet.OWNER_INSTRUCTOR, owner_id=instructor.id, currency="USD"
+        )
         Transaction.objects.create(
-            wallet=wallet, direction=Transaction.DIRECTION_CREDIT, amount=Decimal("70.00"), reason="course_sale"
+            wallet=wallet,
+            direction=Transaction.DIRECTION_CREDIT,
+            amount=Decimal("70.00"),
+            reason="course_sale",
         )
 
         count = aggregation.aggregate_instructor_earnings(TODAY, TODAY + timedelta(days=1))
@@ -196,7 +208,11 @@ class TestReportEndpoints:
 
     def test_admin_report_alias_reuses_same_data(self, finance_client):
         RevenueDailyAggregate.objects.create(
-            period_start=YESTERDAY, period_end=TODAY, currency="USD", gross_amount=Decimal("5"), net_amount=Decimal("5")
+            period_start=YESTERDAY,
+            period_end=TODAY,
+            currency="USD",
+            gross_amount=Decimal("5"),
+            net_amount=Decimal("5"),
         )
 
         canonical = finance_client.get("/api/v1/analytics/revenue/")
@@ -211,10 +227,16 @@ class TestReportEndpoints:
 
     def test_course_performance_returns_combined_snapshot(self, reviewer_client, course):
         CourseCompletionAggregate.objects.create(
-            course=course, period_start=YESTERDAY, period_end=TODAY, enrollments_count=2, completions_count=1
+            course=course,
+            period_start=YESTERDAY,
+            period_end=TODAY,
+            enrollments_count=2,
+            completions_count=1,
         )
 
-        response = reviewer_client.get("/api/v1/analytics/course-performance/", {"course_id": str(course.id)})
+        response = reviewer_client.get(
+            "/api/v1/analytics/course-performance/", {"course_id": str(course.id)}
+        )
 
         assert response.status_code == 200
         assert response.data["completion"]["enrollments_count"] == 2
@@ -224,10 +246,18 @@ class TestInstructorEarningsReport:
     def test_instructor_only_sees_own_earnings_no_id_param_exists(self, instructor, student):
         instructor_client_ = _client_for(instructor)
         InstructorEarningsAggregate.objects.create(
-            instructor=instructor, period_start=YESTERDAY, period_end=TODAY, currency="USD", net_amount=Decimal("50")
+            instructor=instructor,
+            period_start=YESTERDAY,
+            period_end=TODAY,
+            currency="USD",
+            net_amount=Decimal("50"),
         )
         InstructorEarningsAggregate.objects.create(
-            instructor=student, period_start=YESTERDAY, period_end=TODAY, currency="USD", net_amount=Decimal("999")
+            instructor=student,
+            period_start=YESTERDAY,
+            period_end=TODAY,
+            currency="USD",
+            net_amount=Decimal("999"),
         )
 
         response = instructor_client_.get("/api/v1/analytics/instructor-earnings/")

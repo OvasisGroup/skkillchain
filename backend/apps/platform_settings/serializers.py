@@ -10,7 +10,9 @@ class SettingSerializer(serializers.ModelSerializer):
 
 
 class SettingUpsertSerializer(serializers.Serializer):
-    scope_type = serializers.ChoiceField(choices=Setting.SCOPE_CHOICES, default=Setting.SCOPE_PLATFORM)
+    scope_type = serializers.ChoiceField(
+        choices=Setting.SCOPE_CHOICES, default=Setting.SCOPE_PLATFORM
+    )
     scope_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     key = serializers.CharField(max_length=150)
     value_json = serializers.JSONField()

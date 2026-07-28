@@ -3,7 +3,9 @@ from django.db import transaction
 from .models import SupportTicket, SupportTicketMessage
 
 
-def create_ticket(requester, *, category: str, priority: str, subject: str, body: str) -> SupportTicket:
+def create_ticket(
+    requester, *, category: str, priority: str, subject: str, body: str
+) -> SupportTicket:
     with transaction.atomic():
         ticket = SupportTicket.objects.create(
             requester=requester, category=category, priority=priority, subject=subject

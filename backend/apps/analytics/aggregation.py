@@ -33,15 +33,12 @@ def aggregate_revenue(period_start: datetime.date, period_end: datetime.date) ->
     for row in rows:
         currency = row["currency"]
         gross = row["gross"] or Decimal("0")
-        refunded = (
-            Refund.objects.filter(
-                status=Refund.STATUS_SUCCEEDED,
-                payment__currency=currency,
-                requested_at__date__gte=period_start,
-                requested_at__date__lt=period_end,
-            ).aggregate(total=Sum("amount"))["total"]
-            or Decimal("0")
-        )
+        refunded = Refund.objects.filter(
+            status=Refund.STATUS_SUCCEEDED,
+            payment__currency=currency,
+            requested_at__date__gte=period_start,
+            requested_at__date__lt=period_end,
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
         RevenueDailyAggregate.objects.update_or_create(
             period_start=period_start,
             period_end=period_end,
@@ -64,7 +61,9 @@ def aggregate_engagement(period_start: datetime.date, period_end: datetime.date)
     count = 0
     for course_id in course_ids:
         new_enrollments = Enrollment.objects.filter(
-            course_id=course_id, enrolled_at__date__gte=period_start, enrolled_at__date__lt=period_end
+            course_id=course_id,
+            enrolled_at__date__gte=period_start,
+            enrolled_at__date__lt=period_end,
         ).count()
         active_students = (
             ProgressTracking.objects.filter(
@@ -80,7 +79,10 @@ def aggregate_engagement(period_start: datetime.date, period_end: datetime.date)
             course_id=course_id,
             period_start=period_start,
             period_end=period_end,
-            defaults={"active_students_count": active_students, "new_enrollments_count": new_enrollments},
+            defaults={
+                "active_students_count": active_students,
+                "new_enrollments_count": new_enrollments,
+            },
         )
         count += 1
     return count
@@ -90,7 +92,9 @@ def aggregate_completion(period_start: datetime.date, period_end: datetime.date)
     # Cumulative as-of period_end, not a single day's delta — a completion
     # *rate* is a running state, so each day's row is a snapshot of
     # all-time enrollments/completions up to that date.
-    course_ids = Course.objects.filter(enrollments__isnull=False).values_list("id", flat=True).distinct()
+    course_ids = (
+        Course.objects.filter(enrollments__isnull=False).values_list("id", flat=True).distinct()
+    )
     count = 0
     for course_id in course_ids:
         enrollments_count = Enrollment.objects.filter(
@@ -134,7 +138,10 @@ def aggregate_watch_time(period_start: datetime.date, period_end: datetime.date)
             lesson_id=row["lesson_id"],
             period_start=period_start,
             period_end=period_end,
-            defaults={"total_watch_seconds": row["total_seconds"] or 0, "views_count": row["views"]},
+            defaults={
+                "total_watch_seconds": row["total_seconds"] or 0,
+                "views_count": row["views"],
+            },
         )
         count += 1
     return count
@@ -148,18 +155,26 @@ def aggregate_drop_off(period_start: datetime.date, period_end: datetime.date) -
     # regardless of which period is passed in; only computed_at (auto_now)
     # actually varies run to run.
     lesson_ids = (
-        Lesson.objects.filter(progress_entries__isnull=False).values_list("id", flat=True).distinct()
+        Lesson.objects.filter(progress_entries__isnull=False)
+        .values_list("id", flat=True)
+        .distinct()
     )
     count = 0
     for lesson_id in lesson_ids:
         started = ProgressTracking.objects.filter(lesson_id=lesson_id).count()
-        completed = ProgressTracking.objects.filter(lesson_id=lesson_id, percent_complete__gte=100).count()
+        completed = ProgressTracking.objects.filter(
+            lesson_id=lesson_id, percent_complete__gte=100
+        ).count()
         rate = Decimal(started - completed) / Decimal(started) * 100 if started else Decimal("0")
         LessonDropOffAggregate.objects.update_or_create(
             lesson_id=lesson_id,
             period_start=period_start,
             period_end=period_end,
-            defaults={"started_count": started, "completed_count": completed, "drop_off_rate": rate},
+            defaults={
+                "started_count": started,
+                "completed_count": completed,
+                "drop_off_rate": rate,
+            },
         )
         count += 1
     return count

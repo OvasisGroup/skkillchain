@@ -36,7 +36,9 @@ def student_client(api_client, student):
 
 @pytest.fixture
 def course(instructor):
-    c = Course.objects.create(owner=instructor, title="Review Course", price_amount=Decimal("50.00"))
+    c = Course.objects.create(
+        owner=instructor, title="Review Course", price_amount=Decimal("50.00")
+    )
     c.status = Course.STATUS_PUBLISHED
     c.save(update_fields=["status"])
     return c
@@ -51,7 +53,9 @@ def completed_enrollment(student, course):
 
 @pytest.fixture
 def active_enrollment(student, course):
-    return Enrollment.objects.create(student=student, course=course, status=Enrollment.STATUS_ACTIVE)
+    return Enrollment.objects.create(
+        student=student, course=course, status=Enrollment.STATUS_ACTIVE
+    )
 
 
 class TestReviewCreate:
@@ -147,11 +151,15 @@ class TestCourseDiscussions:
 
     def test_active_enrollment_can_post(self, student_client, course, active_enrollment):
         response = student_client.post(
-            f"/api/v1/courses/{course.id}/discussions/", {"body": "question about lesson 2"}, format="json"
+            f"/api/v1/courses/{course.id}/discussions/",
+            {"body": "question about lesson 2"},
+            format="json",
         )
 
         assert response.status_code == 201
-        assert CourseDiscussionPost.objects.filter(course=course, body="question about lesson 2").exists()
+        assert CourseDiscussionPost.objects.filter(
+            course=course, body="question about lesson 2"
+        ).exists()
 
 
 class TestDiscussionWebsocket:

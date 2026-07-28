@@ -8,15 +8,10 @@ from .models import Message, Thread, ThreadParticipant
 
 def create_thread(creator, *, participant_ids, thread_type=Thread.TYPE_DIRECT, subject=""):
     with transaction.atomic():
-        thread = Thread.objects.create(
-            created_by=creator, thread_type=thread_type, subject=subject
-        )
+        thread = Thread.objects.create(created_by=creator, thread_type=thread_type, subject=subject)
         participant_user_ids = set(participant_ids) | {creator.id}
         ThreadParticipant.objects.bulk_create(
-            [
-                ThreadParticipant(thread=thread, user_id=user_id)
-                for user_id in participant_user_ids
-            ]
+            [ThreadParticipant(thread=thread, user_id=user_id) for user_id in participant_user_ids]
         )
     return thread
 

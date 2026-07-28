@@ -61,7 +61,9 @@ class TestInstructorApplication:
         list_response = moderator_client.get("/api/v1/admin/instructors/?status=pending")
         assert len(list_response.data["results"]) == 1
 
-        approve_response = moderator_client.post(f"/api/v1/admin/instructors/{applicant.id}/approve/")
+        approve_response = moderator_client.post(
+            f"/api/v1/admin/instructors/{applicant.id}/approve/"
+        )
 
         assert approve_response.status_code == 200
         assert approve_response.data["status"] == "approved"

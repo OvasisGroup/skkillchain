@@ -50,7 +50,14 @@ class LessonWatchTimeAggregateSerializer(serializers.ModelSerializer):
 class LessonDropOffAggregateSerializer(serializers.ModelSerializer):
     class Meta:
         model = LessonDropOffAggregate
-        fields = ["lesson", "period_start", "period_end", "started_count", "completed_count", "drop_off_rate"]
+        fields = [
+            "lesson",
+            "period_start",
+            "period_end",
+            "started_count",
+            "completed_count",
+            "drop_off_rate",
+        ]
 
 
 class InstructorEarningsAggregateSerializer(serializers.ModelSerializer):

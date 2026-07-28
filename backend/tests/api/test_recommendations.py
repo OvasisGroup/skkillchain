@@ -26,7 +26,11 @@ def student_client(api_client, student):
 
 def _published_course(instructor, title, *, difficulty=Course.DIFFICULTY_BEGINNER, **kwargs):
     c = Course.objects.create(
-        owner=instructor, title=title, difficulty=difficulty, price_amount=Decimal("10.00"), **kwargs
+        owner=instructor,
+        title=title,
+        difficulty=difficulty,
+        price_amount=Decimal("10.00"),
+        **kwargs,
     )
     c.status = Course.STATUS_PUBLISHED
     c.save(update_fields=["status"])
@@ -62,14 +66,20 @@ class TestRecommendedCourses:
 
 
 class TestLearningPaths:
-    def test_orders_by_difficulty_then_popularity(self, student_client, student, instructor, category):
+    def test_orders_by_difficulty_then_popularity(
+        self, student_client, student, instructor, category
+    ):
         anchor = _published_course(instructor, "Anchor Course")
         CourseCategory.objects.create(course=anchor, category=category)
         Enrollment.objects.create(student=student, course=anchor)
 
-        advanced = _published_course(instructor, "Advanced One", difficulty=Course.DIFFICULTY_ADVANCED)
+        advanced = _published_course(
+            instructor, "Advanced One", difficulty=Course.DIFFICULTY_ADVANCED
+        )
         CourseCategory.objects.create(course=advanced, category=category)
-        beginner = _published_course(instructor, "Beginner One", difficulty=Course.DIFFICULTY_BEGINNER)
+        beginner = _published_course(
+            instructor, "Beginner One", difficulty=Course.DIFFICULTY_BEGINNER
+        )
         CourseCategory.objects.create(course=beginner, category=category)
 
         response = student_client.get("/api/v1/ai/recommendations/learning-paths/")

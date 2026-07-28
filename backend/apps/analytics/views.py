@@ -121,12 +121,12 @@ class CoursePerformanceReportView(APIView):
         engagement = EngagementDailyAggregate.objects.filter(course_id=course_id).first()
         return Response(
             {
-                "completion": CourseCompletionAggregateSerializer(completion).data
-                if completion
-                else None,
-                "engagement": EngagementDailyAggregateSerializer(engagement).data
-                if engagement
-                else None,
+                "completion": (
+                    CourseCompletionAggregateSerializer(completion).data if completion else None
+                ),
+                "engagement": (
+                    EngagementDailyAggregateSerializer(engagement).data if engagement else None
+                ),
             }
         )
 

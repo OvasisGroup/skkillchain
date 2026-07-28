@@ -10,9 +10,7 @@ class Thread(models.Model):
     THREAD_TYPE_CHOICES = [(TYPE_DIRECT, "Direct"), (TYPE_GROUP, "Group")]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    thread_type = models.CharField(
-        max_length=20, choices=THREAD_TYPE_CHOICES, default=TYPE_DIRECT
-    )
+    thread_type = models.CharField(max_length=20, choices=THREAD_TYPE_CHOICES, default=TYPE_DIRECT)
     subject = models.CharField(max_length=255, blank=True, default="")
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="created_threads"

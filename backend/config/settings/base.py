@@ -314,7 +314,9 @@ PLATFORM_COMMISSION_RATE = Decimal(env("PLATFORM_COMMISSION_RATE", default="0.30
 # Affiliate referral commission — percent of the referred order's
 # total_amount, credited to the affiliate's wallet on payment success.
 # Same "no documented source of truth" caveat as PLATFORM_COMMISSION_RATE.
-AFFILIATE_DEFAULT_COMMISSION_RATE = Decimal(env("AFFILIATE_DEFAULT_COMMISSION_RATE", default="10.00"))
+AFFILIATE_DEFAULT_COMMISSION_RATE = Decimal(
+    env("AFFILIATE_DEFAULT_COMMISSION_RATE", default="10.00")
+)
 
 # Outbound email (M7 notifications) — console backend by default so dev/
 # test never accidentally sends real mail; stage/prod override EMAIL_BACKEND

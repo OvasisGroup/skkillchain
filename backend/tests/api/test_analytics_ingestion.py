@@ -45,10 +45,14 @@ class TestRecordAnalyticsEvent:
 
 class TestEnrollmentIngestion:
     def test_enroll_records_analytics_event(self, student_client, course):
-        response = student_client.post("/api/v1/enrollments/", {"course_id": str(course.id)}, format="json")
+        response = student_client.post(
+            "/api/v1/enrollments/", {"course_id": str(course.id)}, format="json"
+        )
 
         assert response.status_code == 201
-        assert AnalyticsEvent.objects.filter(event_name="enrollment.created", course=course).exists()
+        assert AnalyticsEvent.objects.filter(
+            event_name="enrollment.created", course=course
+        ).exists()
 
     def test_progress_update_records_analytics_events(self, student_client, student, course):
         section = Section.objects.create(course=course, title="Section 1")
@@ -63,4 +67,6 @@ class TestEnrollmentIngestion:
 
         assert response.status_code == 200
         assert AnalyticsEvent.objects.filter(event_name="lesson.progress", course=course).exists()
-        assert AnalyticsEvent.objects.filter(event_name="enrollment.completed", course=course).exists()
+        assert AnalyticsEvent.objects.filter(
+            event_name="enrollment.completed", course=course
+        ).exists()

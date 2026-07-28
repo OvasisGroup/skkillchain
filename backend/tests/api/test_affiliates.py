@@ -50,7 +50,9 @@ def buyer_client(api_client, buyer):
 
 @pytest.fixture
 def course(instructor):
-    c = Course.objects.create(owner=instructor, title="Affiliate Course", price_amount=Decimal("100.00"))
+    c = Course.objects.create(
+        owner=instructor, title="Affiliate Course", price_amount=Decimal("100.00")
+    )
     c.status = Course.STATUS_PUBLISHED
     c.save(update_fields=["status"])
     return c
