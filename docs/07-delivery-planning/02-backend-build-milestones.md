@@ -288,28 +288,85 @@ production launch of the coding-exercise feature, not silently dropped.
 
 ---
 
-### M6 — Commerce, Payments, and Payouts
+### M6 — Commerce, Payments, and Payouts — commerce core done, billing/payouts/affiliates deferred
 **Sprint 4 (adapters) + Sprint 6 (full ledger)** · Apps: `commerce`, `billing`, `payouts`, `affiliates`
 **Requirements**: FR-PAY-001 – FR-PAY-004
 
-- `orders`/`order_items`/`payments`/`invoices`/`refunds`, `coupons`/`promotions`/`gift_cards`/
-  `gift_card_redemptions`, `plans`/`subscriptions`, `wallets`/`transactions`, `payouts`,
-  `affiliate_accounts`/`affiliate_referrals`/`affiliate_commissions`.
-- Payment provider adapters (Stripe, PayPal, Flutterwave, Paystack, M-Pesa) behind a common
-  interface; every webhook handler verifies its provider's signature before touching the
-  database and is idempotent under redelivery (dedupe on provider event ID).
-- Gift card and coupon/promotion application logic on `checkout/orders/{id}/apply-*`, with order
-  totals always recomputed server-side from current prices — never trust a client-submitted total.
+**Built and verified end-to-end** (checkout → coupon → gift card → \$0 finalization → enrollment,
+over real HTTP; webhook signature rejection over real HTTP; provider-call and full-webhook-success
+paths verified via mocked HTTP the same way M4/M5 handled Zoom/Google Meet — no real payment
+provider credentials exist in dev):
+- `Order`/`OrderItem`/`Payment`/`Invoice`/`Refund`, `Coupon`/`Promotion`/`GiftCard`/
+  `GiftCardRedemption`. Two additions beyond the documented schema, both necessary and both
+  called out in code comments rather than silently introduced: `CouponRedemption` (without a
+  redemption log, `usage_limit`/`per_user_limit` are unenforceable) and `WebhookEvent` (the
+  actual dedupe mechanism — a unique constraint on `(provider, provider_event_id)`, so a
+  replayed webhook hits `IntegrityError` and is treated as an already-processed no-op instead of
+  reprocessing; proved with a genuine duplicate-delivery test and live over HTTP).
+- Order totals (`subtotal`/`discount`/`gift_card_amount`/`total`) are always recomputed
+  server-side from the order's own persisted items/coupon/gift-card state
+  (`apps.commerce.services.compute_order_totals`) — a client never supplies a price or a total.
+  Course prices are pulled from the live `Course.price_amount` at order-creation time, not
+  trusted from the request. Verified live: a coupon (20% off) followed by a gift card
+  (remaining-balance-limited) took a \$100 order to exactly \$70, then a top-up gift card fully
+  covering the \$70 remainder finalized the order without ever calling out to a payment provider,
+  confirmed directly against the database afterward — order paid, invoice issued, student
+  enrolled (`Enrollment.source="purchase"`, the exact mechanism anticipated in the M4 commit
+  notes), coupon redemption row written, and the gift card's balance debited by exactly the
+  amount applied, no more.
+- Gift card/coupon **redemption and balance deduction only happen at payment-success time**
+  (`finalize_order_payment`), not at apply-time — an abandoned cart never permanently burns a
+  gift card balance or a coupon's usage count. This is a deliberate design choice over the
+  simpler "deduct immediately" approach, documented in the `Order` model.
+- **Five payment provider adapters behind one interface** (`PaymentProvider.create_payment` /
+  `verify_and_parse_webhook` / `refund_payment`), each with a genuinely different webhook
+  verification model and each tested accordingly:
+  - **Stripe**: local HMAC-SHA256 over `{timestamp}.{body}`, stale-timestamp replay rejection —
+    verified with a *genuinely computed* signature (not mocked), plus wrong-secret and
+    missing-header rejection tests, and live over HTTP (both a missing-signature and a
+    garbage-signature request were rejected with 400 by the real running server).
+  - **Paystack**: local HMAC-SHA512 over the raw body — genuinely signed and tampered-body tests.
+  - **Flutterwave**: not an HMAC at all — a static shared "secret hash" echoed back verbatim in
+    the `Verif-Hash` header, verified by constant-time string comparison; documented as a
+    materially different model from the other two, tested accordingly (right hash / wrong hash /
+    missing hash).
+  - **PayPal**: has no local verification method — Daraja-style, it requires calling PayPal's own
+    `verify-webhook-signature` API. Tested with a mocked HTTP call (same pattern as M4's Zoom/
+    Google Meet adapters), not a real signature computation, because there is no local
+    computation to do.
+  - **M-Pesa**: two honest, documented gaps rather than papered-over ones — (1) STK Push is
+    phone-initiated, not redirect/client-secret based, so `create_payment` requires a phone
+    number and raises a clear error without one; (2) Safaricom's Daraja callbacks carry **no
+    cryptographic signature at all** (their real security model is IP allowlisting at the network
+    layer, which this application-level code cannot enforce). The practical substitute — a secret
+    token embedded in the registered callback URL path — is implemented and tested, but is
+    explicitly documented as not equivalent to real IP allowlisting, which a production
+    deployment must still add at the load balancer/WAF. `refund_payment` raises rather than
+    faking success — Daraja's reversal API needs a separate initiator-credential flow not built
+    here.
+- Instructor course-scoped coupon authoring (owner-only) and admin platform-wide coupon/promotion
+  authoring, gated by new `coupons.manage`/`promotions.manage` permissions seeded onto
+  `finance_officer`/`administrator`/`super_administrator` (same seeding pattern as M3's
+  `courses.approve`). Self-service refunds (buyer-initiated, on their own payment only, capped at
+  the original payment amount) mark the payment/order refunded on provider success.
 
-**Security checklist**: no raw card data ever reaches the application (gateway tokenization
-only — verify with a code-level assertion, not just a policy statement); webhook endpoints
-reject unsigned or replayed events with a test proving both; payout calculations are covered by
-a reconciliation test that re-derives totals from the transaction ledger independently of the
-payout job's own arithmetic.
+**Security checklist**: no raw card data ever reaches the application — every provider integration
+is tokenization/redirect/hosted-checkout based (Stripe PaymentIntents + client-side confirmation,
+PayPal/Flutterwave/Paystack hosted checkout redirects, M-Pesa STK push to the phone), never a
+card-number field anywhere in a model or serializer. Webhook endpoints reject unsigned or replayed
+events with tests proving both, for every provider whose model supports local verification, plus
+live HTTP confirmation for Stripe. **Payout reconciliation is N/A for this slice** — payouts don't
+exist yet, see deferred scope below.
 
-**Exit criteria**: a checkout combining a coupon and a partial gift-card redemption reconciles
-to the correct total under a duplicate webhook delivery; an instructor payout matches the sum
-of their net transactions for the period, verified by an independent query.
+**Deferred to follow-up slices** (each a distinct, mostly-independent subsystem — same reasoning
+as every prior milestone's split): `billing` (plans/subscriptions), `payouts`
+(wallets/transactions/payouts, including the reconciliation test named in the original security
+checklist), `affiliates` (affiliate_accounts/referrals/commissions).
+
+**Exit criteria**: the coupon+gift-card reconciliation clause is met — verified live, exactly as
+described above, including under a duplicate webhook delivery (tested, not just asserted). The
+instructor-payout reconciliation clause moves to the `payouts` follow-up, since payouts don't
+exist yet in this slice.
 
 ---
 

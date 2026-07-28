@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.learning",
     "apps.live_sessions",
     "apps.assessments",
+    "apps.commerce",
     "shared.health",
 ]
 
@@ -212,6 +213,8 @@ SPECTACULAR_SETTINGS = {
         "EnrollmentStatusEnum": "apps.learning.models.Enrollment.STATUS_CHOICES",
         "QuestionTypeEnum": "apps.assessments.models.Question.TYPE_CHOICES",
         "GradeEntryTypeEnum": "apps.assessments.serializers.GRADE_ENTRY_TYPE_CHOICES",
+        "PaymentProviderEnum": "apps.commerce.serializers.PAYMENT_PROVIDER_CHOICES",
+        "ConferencingProviderEnum": "apps.live_sessions.models.ConferencingAccount.PROVIDER_CHOICES",
     },
 }
 
@@ -237,3 +240,25 @@ ZOOM_REDIRECT_URI = env("ZOOM_REDIRECT_URI", default="")
 GOOGLE_MEET_CLIENT_ID = env("GOOGLE_MEET_CLIENT_ID", default="")
 GOOGLE_MEET_CLIENT_SECRET = env("GOOGLE_MEET_CLIENT_SECRET", default="")
 GOOGLE_MEET_REDIRECT_URI = env("GOOGLE_MEET_REDIRECT_URI", default="")
+
+# Payment provider credentials (M6 commerce) — see apps/commerce/providers/
+# for the adapter behind each. All default to "" in dev; anything that
+# actually calls out to a real provider simply fails with a clear
+# PaymentProviderError until real credentials are supplied.
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
+PAYPAL_CLIENT_ID = env("PAYPAL_CLIENT_ID", default="")
+PAYPAL_CLIENT_SECRET = env("PAYPAL_CLIENT_SECRET", default="")
+PAYPAL_WEBHOOK_ID = env("PAYPAL_WEBHOOK_ID", default="")
+FLUTTERWAVE_SECRET_KEY = env("FLUTTERWAVE_SECRET_KEY", default="")
+FLUTTERWAVE_WEBHOOK_SECRET_HASH = env("FLUTTERWAVE_WEBHOOK_SECRET_HASH", default="")
+PAYSTACK_SECRET_KEY = env("PAYSTACK_SECRET_KEY", default="")
+MPESA_CONSUMER_KEY = env("MPESA_CONSUMER_KEY", default="")
+MPESA_CONSUMER_SECRET = env("MPESA_CONSUMER_SECRET", default="")
+MPESA_SHORTCODE = env("MPESA_SHORTCODE", default="")
+MPESA_PASSKEY = env("MPESA_PASSKEY", default="")
+# M-Pesa callbacks carry no signature (see providers/mpesa.py docstring) —
+# this secret path segment is the practical substitute for local
+# verification; real IP allowlisting still belongs at the infra layer.
+MPESA_CALLBACK_SECRET = env("MPESA_CALLBACK_SECRET", default="")
+MPESA_CALLBACK_URL = env("MPESA_CALLBACK_URL", default="")
