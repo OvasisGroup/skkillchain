@@ -1,5 +1,5 @@
 from django.conf import settings
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -24,10 +24,20 @@ def _own_affiliate_account_or_403(user) -> AffiliateAccount:
     return account
 
 
+_AFFILIATE_ACCOUNT_EXAMPLE = {
+    "id": "d3e4f5a6-...",
+    "referral_code": "AFF-JANE01",
+    "commission_rate": "0.10",
+}
+
+
 @extend_schema(
     tags=["Affiliate"],
     request=None,
     responses={201: AffiliateAccountSerializer, 200: AffiliateAccountSerializer},
+    description="Registers the current user as an affiliate, issuing a referral code. "
+    "Returns 200 (not 201) if already registered.",
+    examples=[OpenApiExample("Account", value=_AFFILIATE_ACCOUNT_EXAMPLE, response_only=True)],
 )
 class AffiliateRegisterView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -40,7 +50,13 @@ class AffiliateRegisterView(APIView):
         return Response(AffiliateAccountSerializer(account).data, status=201 if created else 200)
 
 
-@extend_schema(tags=["Affiliate"], responses={200: AffiliateAccountSerializer})
+@extend_schema(
+    tags=["Affiliate"],
+    responses={200: AffiliateAccountSerializer},
+    description="Gets the current user's own affiliate account. 403 if not registered as an "
+    "affiliate yet — see POST /affiliate/register.",
+    examples=[OpenApiExample("Account", value=_AFFILIATE_ACCOUNT_EXAMPLE, response_only=True)],
+)
 class AffiliateMeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -49,7 +65,24 @@ class AffiliateMeView(APIView):
         return Response(AffiliateAccountSerializer(account).data)
 
 
-@extend_schema(tags=["Affiliate"])
+@extend_schema(
+    tags=["Affiliate"],
+    description="Lists the current affiliate's referrals (users who signed up or purchased "
+    "through their referral code).",
+    examples=[
+        OpenApiExample(
+            "Referral",
+            value={
+                "id": "e4f5a6b7-...",
+                "referred_user_email": "newuser@example.com",
+                "order": "e1f2a3b4-...",
+                "status": "converted",
+                "created_at": "2026-02-01T12:00:00Z",
+            },
+            response_only=True,
+        )
+    ],
+)
 class AffiliateReferralListView(generics.ListAPIView):
     serializer_class = AffiliateReferralSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -60,7 +93,23 @@ class AffiliateReferralListView(generics.ListAPIView):
         return account.referrals.select_related("referred_user")
 
 
-@extend_schema(tags=["Affiliate"])
+@extend_schema(
+    tags=["Affiliate"],
+    description="Lists the current affiliate's earned commissions.",
+    examples=[
+        OpenApiExample(
+            "Commission",
+            value={
+                "id": "f5a6b7c8-...",
+                "referral": "e4f5a6b7-...",
+                "commission_amount": "5.00",
+                "payout_status": "pending",
+                "created_at": "2026-02-01T12:05:00Z",
+            },
+            response_only=True,
+        )
+    ],
+)
 class AffiliateCommissionListView(generics.ListAPIView):
     serializer_class = AffiliateCommissionSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -71,7 +120,18 @@ class AffiliateCommissionListView(generics.ListAPIView):
         return AffiliateCommission.objects.filter(referral__affiliate=account)
 
 
-@extend_schema(tags=["Affiliate"], responses={200: WalletSerializer})
+@extend_schema(
+    tags=["Affiliate"],
+    responses={200: WalletSerializer},
+    description="Gets the current affiliate's wallet balance (available for payout).",
+    examples=[
+        OpenApiExample(
+            "Wallet",
+            value={"id": "a6b7c8d9-...", "balance_amount": "35.00", "currency": "USD"},
+            response_only=True,
+        )
+    ],
+)
 class AffiliateWalletView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -85,7 +145,29 @@ class AffiliateWalletView(APIView):
         return Response(WalletSerializer(wallet).data)
 
 
-@extend_schema(tags=["Affiliate"], request=None, responses={201: PayoutSerializer})
+@extend_schema(
+    tags=["Affiliate"],
+    request=None,
+    responses={201: PayoutSerializer},
+    description="Requests a payout of the current affiliate's full available wallet balance, "
+    "marking every pending commission as paid.",
+    examples=[
+        OpenApiExample(
+            "Requested",
+            value={
+                "id": "b7c8d9e0-...",
+                "period_start": "2026-01-01",
+                "period_end": "2026-01-31",
+                "amount_gross": "35.00",
+                "amount_net": "35.00",
+                "status": "requested",
+                "paid_at": None,
+                "created_at": "2026-02-01T09:00:00Z",
+            },
+            response_only=True,
+        )
+    ],
+)
 class AffiliatePayoutRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     throttle_scope = "financial-write"
