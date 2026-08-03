@@ -32,9 +32,11 @@ class ReviewUpdateSerializer(serializers.ModelSerializer):
 
 
 class CourseDiscussionPostSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+
     class Meta:
         model = CourseDiscussionPost
-        fields = ["id", "course", "user", "body", "created_at"]
+        fields = ["id", "course", "user", "user_email", "body", "created_at"]
 
 
 class CourseDiscussionPostCreateSerializer(serializers.Serializer):

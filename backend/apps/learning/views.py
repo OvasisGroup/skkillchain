@@ -9,9 +9,10 @@ from rest_framework.views import APIView
 from apps.analytics.services import record_analytics_event
 from apps.audit.services import record_event
 from apps.catalog.models import Course
-from apps.content.models import Lesson
+from apps.content.models import Lesson, Section
 from shared.api.pagination import EnrolledAtCursorPagination, IssuedAtCursorPagination
 
+from .certificates import ensure_certificate_pdf
 from .models import (
     Certificate,
     Enrollment,
@@ -24,15 +25,24 @@ from .serializers import (
     BookmarkCreateSerializer,
     CertificateSerializer,
     CertificateVerifyResponseSerializer,
+    CurriculumSectionSerializer,
     EnrollmentProgressSerializer,
     EnrollmentSerializer,
     EnrollRequestSerializer,
+    LessonContentSerializer,
     LessonNoteCreateSerializer,
     ProgressEntrySerializer,
     ProgressUpdateSerializer,
     WishlistItemSerializer,
 )
 from .services import maybe_complete_enrollment
+
+
+def _enrollment_for_course_or_403(user, course_id):
+    enrollment = Enrollment.objects.filter(student=user, course_id=course_id).first()
+    if enrollment is None:
+        raise PermissionDenied("You must be enrolled in this course.")
+    return enrollment
 
 
 def _enrollment_for_lesson_or_404(user, lesson):
@@ -134,6 +144,36 @@ class ContinueLearningView(generics.ListAPIView):
             .annotate(last_activity=Max("progress_entries__last_viewed_at"))
             .order_by("-last_activity", "-enrolled_at")
         )
+
+
+@extend_schema(
+    tags=["Student"],
+    responses={200: CurriculumSectionSerializer(many=True)},
+    description="Gets the section/lesson structure for a course the current user is enrolled "
+    "in — no lesson content, just what's needed to build a curriculum sidebar.",
+)
+class CourseCurriculumView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, course_id):
+        _enrollment_for_course_or_403(request.user, course_id)
+        sections = Section.objects.filter(course_id=course_id).prefetch_related("lessons")
+        return Response(CurriculumSectionSerializer(sections, many=True).data)
+
+
+@extend_schema(
+    tags=["Student"],
+    responses={200: LessonContentSerializer},
+    description="Gets a lesson's playable/viewable content (video or PDF file URL) for a "
+    "course the current user is enrolled in.",
+)
+class LessonContentView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, id):
+        lesson = get_object_or_404(Lesson, pk=id)
+        _enrollment_for_lesson_or_404(request.user, lesson)
+        return Response(LessonContentSerializer(lesson, context={"request": request}).data)
 
 
 @extend_schema(
@@ -399,9 +439,23 @@ class CertificateListView(generics.ListAPIView):
     pagination_class = IssuedAtCursorPagination
 
     def get_queryset(self):
-        return Certificate.objects.filter(enrollment__student=self.request.user).select_related(
-            "enrollment__course"
-        )
+        return Certificate.objects.filter(
+            enrollment__student=self.request.user
+        ).select_related("enrollment__course", "enrollment__student__profile")
+
+    def list(self, request, *args, **kwargs):
+        # Self-heals certificates issued before pdf_file existed (or whose
+        # render previously failed) — cheap since it's a no-op once a
+        # certificate already has a file.
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        for certificate in page if page is not None else queryset:
+            ensure_certificate_pdf(certificate)
+
+        serializer = self.get_serializer(page if page is not None else queryset, many=True)
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
 
 
 @extend_schema(

@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from apps.catalog.models import Category, Course, CourseCategory
+from apps.catalog.models import Category, Course
 from apps.learning.models import Enrollment
 
 pytestmark = pytest.mark.django_db
@@ -44,11 +44,9 @@ def category(instructor):
 
 class TestRecommendedCourses:
     def test_excludes_already_enrolled_courses(self, student_client, student, instructor, category):
-        enrolled_course = _published_course(instructor, "Enrolled Course")
-        CourseCategory.objects.create(course=enrolled_course, category=category)
+        enrolled_course = _published_course(instructor, "Enrolled Course", category=category)
         Enrollment.objects.create(student=student, course=enrolled_course)
-        other_course = _published_course(instructor, "Other In Same Category")
-        CourseCategory.objects.create(course=other_course, category=category)
+        other_course = _published_course(instructor, "Other In Same Category", category=category)
 
         response = student_client.get("/api/v1/ai/recommendations/courses/")
 
@@ -69,18 +67,15 @@ class TestLearningPaths:
     def test_orders_by_difficulty_then_popularity(
         self, student_client, student, instructor, category
     ):
-        anchor = _published_course(instructor, "Anchor Course")
-        CourseCategory.objects.create(course=anchor, category=category)
+        anchor = _published_course(instructor, "Anchor Course", category=category)
         Enrollment.objects.create(student=student, course=anchor)
 
         advanced = _published_course(
-            instructor, "Advanced One", difficulty=Course.DIFFICULTY_ADVANCED
+            instructor, "Advanced One", difficulty=Course.DIFFICULTY_ADVANCED, category=category
         )
-        CourseCategory.objects.create(course=advanced, category=category)
         beginner = _published_course(
-            instructor, "Beginner One", difficulty=Course.DIFFICULTY_BEGINNER
+            instructor, "Beginner One", difficulty=Course.DIFFICULTY_BEGINNER, category=category
         )
-        CourseCategory.objects.create(course=beginner, category=category)
 
         response = student_client.get("/api/v1/ai/recommendations/learning-paths/")
 

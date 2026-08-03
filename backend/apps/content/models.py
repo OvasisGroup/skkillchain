@@ -19,20 +19,27 @@ class Section(models.Model):
         return self.title
 
 
+def lesson_content_upload_path(instance, filename):
+    return f"lessons/{instance.section_id}/{instance.id}/{filename}"
+
+
 class Lesson(models.Model):
     """
-    lesson_type is currently a label only — quiz/assignment content lives in
-    their own tables once the assessments app exists (M5); video metadata
-    (provider, playback) is a deferred follow-up alongside the video
-    provider adapter, per the M3 commit notes.
+    quiz/assignment content lives in their own tables in the assessments app
+    (M5) — lesson_type is just a label for those two. video/pdf lessons hold
+    their own file in content_file; video playback-position metadata beyond
+    the raw file (provider, adaptive bitrate, etc.) is still a deferred
+    follow-up per the M3 commit notes.
     """
 
     TYPE_VIDEO = "video"
+    TYPE_PDF = "pdf"
     TYPE_ARTICLE = "article"
     TYPE_QUIZ = "quiz"
     TYPE_ASSIGNMENT = "assignment"
     TYPE_CHOICES = [
         (TYPE_VIDEO, "Video"),
+        (TYPE_PDF, "PDF"),
         (TYPE_ARTICLE, "Article"),
         (TYPE_QUIZ, "Quiz"),
         (TYPE_ASSIGNMENT, "Assignment"),
@@ -45,6 +52,12 @@ class Lesson(models.Model):
     sort_order = models.PositiveIntegerField(default=0)
     duration_seconds = models.PositiveIntegerField(default=0)
     is_preview = models.BooleanField(default=False)
+    # Only meaningful for TYPE_VIDEO/TYPE_PDF; blank for article/quiz/assignment.
+    # max_length=255 (Django's FileField default is 100): the upload path is
+    # "lessons/<section-uuid>/<lesson-uuid>/<filename>" — the two UUIDs alone
+    # take 82 characters, so 100 left almost no room for a real filename and
+    # made Storage.get_available_name() fail outright on realistic names.
+    content_file = models.FileField(upload_to=lesson_content_upload_path, blank=True, max_length=255)
 
     class Meta:
         db_table = "lessons"

@@ -1,4 +1,7 @@
+import base64
+
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from apps.audit.models import AuditLog
 from apps.identity.models import Profile
@@ -6,6 +9,12 @@ from apps.identity.models import Profile
 pytestmark = pytest.mark.django_db
 
 STRONG_PASSWORD = "a-strong-password-1"
+
+# Smallest possible valid PNG (1x1 transparent pixel) — real image bytes are
+# required since ImageField validation actually decodes the file via Pillow.
+_ONE_PIXEL_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
 
 
 def _register(api_client, email="new@example.com", password=STRONG_PASSWORD):
@@ -93,6 +102,134 @@ class TestMe:
 
         assert response.status_code == 200
         assert response.data["profile"]["first_name"] == "Ada"
+
+    def test_me_patch_updates_social_links(self, api_client):
+        _register(api_client, email="social@example.com")
+        login = _login(api_client, "social@example.com")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+        response = api_client.patch(
+            "/api/v1/auth/me/",
+            {
+                "profile": {
+                    "linkedin_url": "https://linkedin.com/in/ada",
+                    "twitter_url": "https://twitter.com/ada",
+                    "github_url": "https://github.com/ada",
+                    "youtube_url": "https://youtube.com/@ada",
+                    "website_url": "https://ada.dev",
+                }
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert response.data["profile"]["linkedin_url"] == "https://linkedin.com/in/ada"
+        assert response.data["profile"]["github_url"] == "https://github.com/ada"
+        assert response.data["profile"]["youtube_url"] == "https://youtube.com/@ada"
+
+    def test_me_patch_updates_bio(self, api_client):
+        _register(api_client, email="bio@example.com")
+        login = _login(api_client, "bio@example.com")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+        response = api_client.patch(
+            "/api/v1/auth/me/",
+            {"profile": {"bio": "Backend engineer turned Django instructor."}},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert response.data["profile"]["bio"] == "Backend engineer turned Django instructor."
+
+    def test_me_patch_cannot_set_avatar_directly(self, api_client):
+        # avatar is read-only on this JSON endpoint — a file can't travel
+        # through a plain PATCH body, so a string value is just ignored
+        # rather than erroring, and the dedicated upload endpoint is used
+        # instead (see TestAvatarUpload below).
+        _register(api_client, email="noavatar@example.com")
+        login = _login(api_client, "noavatar@example.com")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+        response = api_client.patch(
+            "/api/v1/auth/me/",
+            {"profile": {"avatar": "https://evil.example.com/x.png"}},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert response.data["profile"]["avatar"] in (None, "")
+
+
+class TestAvatarUpload:
+    def test_uploads_avatar(self, api_client, settings, tmp_path):
+        settings.MEDIA_ROOT = tmp_path  # keep the uploaded test file out of the real media/ dir
+        _register(api_client, email="avatar@example.com")
+        login = _login(api_client, "avatar@example.com")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+        image = SimpleUploadedFile("avatar.png", _ONE_PIXEL_PNG, content_type="image/png")
+
+        response = api_client.post("/api/v1/auth/me/avatar/", {"avatar": image}, format="multipart")
+
+        assert response.status_code == 200
+        assert response.data["profile"]["avatar"]
+        profile = Profile.objects.get(user__email="avatar@example.com")
+        assert profile.avatar.name
+
+    def test_requires_authentication(self, api_client, settings, tmp_path):
+        settings.MEDIA_ROOT = tmp_path
+        image = SimpleUploadedFile("avatar.png", _ONE_PIXEL_PNG, content_type="image/png")
+
+        response = api_client.post("/api/v1/auth/me/avatar/", {"avatar": image}, format="multipart")
+
+        assert response.status_code == 401
+
+    def test_rejects_non_image_file(self, api_client, settings, tmp_path):
+        settings.MEDIA_ROOT = tmp_path
+        _register(api_client, email="badavatar@example.com")
+        login = _login(api_client, "badavatar@example.com")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+        not_an_image = SimpleUploadedFile("avatar.txt", b"not an image", content_type="text/plain")
+
+        response = api_client.post(
+            "/api/v1/auth/me/avatar/", {"avatar": not_an_image}, format="multipart"
+        )
+
+        assert response.status_code == 400
+
+    def test_me_patch_updates_email(self, api_client):
+        _register(api_client, email="oldmail@example.com")
+        login = _login(api_client, "oldmail@example.com")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+        response = api_client.patch(
+            "/api/v1/auth/me/", {"email": "newmail@example.com"}, format="json"
+        )
+
+        assert response.status_code == 200
+        assert response.data["email"] == "newmail@example.com"
+
+    def test_me_patch_email_rejects_existing_address(self, api_client):
+        _register(api_client, email="taken@example.com")
+        _register(api_client, email="mine@example.com")
+        login = _login(api_client, "mine@example.com")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+        response = api_client.patch(
+            "/api/v1/auth/me/", {"email": "taken@example.com"}, format="json"
+        )
+
+        assert response.status_code == 400
+
+    def test_me_patch_email_allows_keeping_own_address(self, api_client):
+        _register(api_client, email="unchanged@example.com")
+        login = _login(api_client, "unchanged@example.com")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+        response = api_client.patch(
+            "/api/v1/auth/me/", {"email": "unchanged@example.com"}, format="json"
+        )
+
+        assert response.status_code == 200
 
 
 class TestTokenLifecycle:

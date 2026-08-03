@@ -62,15 +62,27 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
         return self.email
 
 
+def profile_avatar_upload_path(instance, filename):
+    return f"profiles/{instance.user_id}/avatar/{filename}"
+
+
 class Profile(models.Model):
     user = models.OneToOneField(
         User, primary_key=True, on_delete=models.CASCADE, related_name="profile"
     )
     first_name = models.CharField(max_length=150, blank=True)
     last_name = models.CharField(max_length=150, blank=True)
-    avatar_url = models.URLField(blank=True)
+    bio = models.TextField(blank=True)
+    avatar = models.ImageField(upload_to=profile_avatar_upload_path, blank=True)
     locale = models.CharField(max_length=10, default="en")
     timezone = models.CharField(max_length=50, default="UTC")
+    # Optional public contact links — shown on an instructor's public profile,
+    # equally available to students since nothing here gates on role.
+    linkedin_url = models.URLField(blank=True)
+    twitter_url = models.URLField(blank=True)
+    github_url = models.URLField(blank=True)
+    youtube_url = models.URLField(blank=True)
+    website_url = models.URLField(blank=True)
 
     class Meta:
         db_table = "profiles"

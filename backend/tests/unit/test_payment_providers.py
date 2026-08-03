@@ -152,6 +152,18 @@ class TestFlutterwaveWebhookVerification:
 
 
 class TestMpesaProvider:
+    def test_api_base_defaults_to_sandbox(self, settings):
+        settings.MPESA_ENVIRONMENT = ""
+        assert MpesaPaymentProvider()._api_base == "https://sandbox.safaricom.co.ke"
+
+    def test_api_base_selects_production(self, settings):
+        settings.MPESA_ENVIRONMENT = "production"
+        assert MpesaPaymentProvider()._api_base == "https://api.safaricom.co.ke"
+
+    def test_api_base_selects_sandbox(self, settings):
+        settings.MPESA_ENVIRONMENT = "sandbox"
+        assert MpesaPaymentProvider()._api_base == "https://sandbox.safaricom.co.ke"
+
     def test_create_payment_requires_phone_number(self):
         with pytest.raises(PaymentProviderError):
             MpesaPaymentProvider().create_payment(amount=100, currency="KES", order_id="order-1")

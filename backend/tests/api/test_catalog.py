@@ -41,14 +41,33 @@ class TestCourseListView:
 
     def test_filters_by_category(self, api_client, instructor):
         cat = Category.objects.create(name="Data Science", slug="data-science")
-        matching = _published_course(instructor, title="ML 101")
-        matching.categories.add(cat)
+        matching = _published_course(instructor, title="ML 101", category=cat)
         _published_course(instructor, title="Unrelated")
 
         response = api_client.get("/api/v1/courses/?category=data-science")
 
         titles = [item["title"] for item in response.data["results"]]
         assert titles == ["ML 101"]
+
+    def test_filters_by_search_query_matching_title_or_summary(self, api_client, instructor):
+        _published_course(instructor, title="Django for Beginners", summary="")
+        _published_course(instructor, title="Cooking 101", summary="Learn Django-free recipes")
+        _published_course(instructor, title="Unrelated", summary="")
+
+        response = api_client.get("/api/v1/courses/?q=django")
+
+        titles = {item["title"] for item in response.data["results"]}
+        assert titles == {"Django for Beginners", "Cooking 101"}
+
+    def test_filters_by_is_free(self, api_client, instructor):
+        _published_course(instructor, title="Free Course", price_amount="0.00")
+        _published_course(instructor, title="Paid Course", price_amount="49.99")
+
+        free_response = api_client.get("/api/v1/courses/?is_free=true")
+        paid_response = api_client.get("/api/v1/courses/?is_free=false")
+
+        assert [item["title"] for item in free_response.data["results"]] == ["Free Course"]
+        assert [item["title"] for item in paid_response.data["results"]] == ["Paid Course"]
 
 
 class TestCourseDetailView:
@@ -109,3 +128,174 @@ class TestCategoryAndTagLists:
 
         assert response.status_code == 200
         assert any(item["slug"] == "design" for item in response.data)
+
+
+class TestCategoryManagement:
+    def test_create_requires_authentication(self, api_client):
+        response = api_client.post("/api/v1/categories/", {"name": "Design"}, format="json")
+
+        assert response.status_code == 401
+
+    def test_create_requires_permission(self, api_client, instructor):
+        api_client.force_authenticate(user=instructor)
+
+        response = api_client.post("/api/v1/categories/", {"name": "Design"}, format="json")
+
+        assert response.status_code == 403
+
+    def test_admin_can_create_with_auto_slug(self, api_client, django_user_model):
+        from apps.authorization.models import Role, UserRole
+
+        admin = django_user_model.objects.create_user(email="admin@example.com", password="x")
+        UserRole.objects.create(user=admin, role=Role.objects.get(code="administrator"))
+        api_client.force_authenticate(user=admin)
+
+        response = api_client.post("/api/v1/categories/", {"name": "Data Science"}, format="json")
+
+        assert response.status_code == 201
+        assert response.data["slug"] == "data-science"
+
+    def test_admin_can_delete_unused_category(self, api_client, django_user_model):
+        from apps.authorization.models import Role, UserRole
+
+        admin = django_user_model.objects.create_user(email="admin@example.com", password="x")
+        UserRole.objects.create(user=admin, role=Role.objects.get(code="administrator"))
+        api_client.force_authenticate(user=admin)
+        category = Category.objects.create(name="Unused", slug="unused")
+
+        response = api_client.delete(f"/api/v1/categories/{category.id}/")
+
+        assert response.status_code == 204
+        assert not Category.objects.filter(pk=category.id).exists()
+
+    def test_cannot_delete_category_in_use(self, api_client, django_user_model, instructor):
+        from apps.authorization.models import Role, UserRole
+
+        admin = django_user_model.objects.create_user(email="admin@example.com", password="x")
+        UserRole.objects.create(user=admin, role=Role.objects.get(code="administrator"))
+        api_client.force_authenticate(user=admin)
+        category = Category.objects.create(name="In Use", slug="in-use")
+        _published_course(instructor, title="Uses It", category=category)
+
+        response = api_client.delete(f"/api/v1/categories/{category.id}/")
+
+        assert response.status_code == 400
+        assert Category.objects.filter(pk=category.id).exists()
+
+
+class TestTagManagement:
+    def test_authenticated_user_can_create_tag(self, api_client, instructor):
+        from apps.catalog.models import Tag
+
+        api_client.force_authenticate(user=instructor)
+
+        response = api_client.post("/api/v1/tags/", {"name": "Django"}, format="json")
+
+        assert response.status_code == 201
+        assert response.data["slug"] == "django"
+        assert Tag.objects.filter(name="Django").exists()
+
+    def test_creating_existing_tag_is_idempotent(self, api_client, instructor):
+        from apps.catalog.models import Tag
+
+        Tag.objects.create(name="Python", slug="python")
+        api_client.force_authenticate(user=instructor)
+
+        response = api_client.post("/api/v1/tags/", {"name": "python"}, format="json")
+
+        assert response.status_code == 200
+        assert Tag.objects.filter(name__iexact="python").count() == 1
+
+    def test_create_requires_authentication(self, api_client):
+        response = api_client.post("/api/v1/tags/", {"name": "Django"}, format="json")
+
+        assert response.status_code == 401
+
+
+class TestInstructorDirectory:
+    def test_lists_instructors_with_published_courses(self, api_client, instructor):
+        _published_course(instructor, title="Live Course")
+
+        response = api_client.get("/api/v1/instructors/")
+
+        assert response.status_code == 200
+        emails = [item["email"] for item in response.data]
+        assert emails == [instructor.email]
+        assert response.data[0]["published_course_count"] == 1
+
+    def test_orders_newest_instructor_first(self, api_client, instructor, django_user_model):
+        newer_instructor = django_user_model.objects.create_user(
+            email="newer-instructor@example.com", password="x"
+        )
+        _published_course(instructor, title="Older Instructor's Course")
+        _published_course(newer_instructor, title="Newer Instructor's Course")
+
+        response = api_client.get("/api/v1/instructors/")
+
+        emails = [item["email"] for item in response.data]
+        assert emails == [newer_instructor.email, instructor.email]
+
+    def test_lists_distinct_categories_taught(self, api_client, instructor):
+        programming = Category.objects.create(name="Programming", slug="programming")
+        design = Category.objects.create(name="Design", slug="design")
+        _published_course(instructor, title="Course A", category=programming)
+        _published_course(instructor, title="Course B", category=programming)
+        _published_course(instructor, title="Course C", category=design)
+
+        response = api_client.get("/api/v1/instructors/")
+
+        names = {item["name"] for item in response.data[0]["categories"]}
+        assert names == {"Programming", "Design"}
+
+    def test_categories_empty_when_courses_uncategorized(self, api_client, instructor):
+        _published_course(instructor, title="No Category")
+
+        response = api_client.get("/api/v1/instructors/")
+
+        assert response.data[0]["categories"] == []
+
+    def test_excludes_users_with_only_draft_courses(self, api_client, instructor):
+        Course.objects.create(owner=instructor, title="Still a Draft")
+
+        response = api_client.get("/api/v1/instructors/")
+
+        assert response.status_code == 200
+        assert response.data == []
+
+    def test_course_count_only_counts_published(self, api_client, instructor):
+        _published_course(instructor, title="Published One")
+        Course.objects.create(owner=instructor, title="Draft One")
+
+        response = api_client.get("/api/v1/instructors/")
+
+        assert response.data[0]["published_course_count"] == 1
+
+    def test_detail_returns_profile_and_published_courses(self, api_client, instructor):
+        from apps.identity.models import Profile
+
+        Profile.objects.filter(user=instructor).update(
+            first_name="Jane", last_name="Doe", bio="Backend engineer."
+        )
+        published = _published_course(instructor, title="Live Course")
+        Course.objects.create(owner=instructor, title="Draft, not shown")
+
+        response = api_client.get(f"/api/v1/instructors/{instructor.id}/")
+
+        assert response.status_code == 200
+        assert response.data["profile"]["first_name"] == "Jane"
+        assert response.data["profile"]["bio"] == "Backend engineer."
+        titles = [c["title"] for c in response.data["courses"]]
+        assert titles == ["Live Course"]
+        assert str(response.data["courses"][0]["id"]) == str(published.id)
+
+    def test_detail_404s_for_instructor_with_no_published_courses(self, api_client, instructor):
+        Course.objects.create(owner=instructor, title="Draft Only")
+
+        response = api_client.get(f"/api/v1/instructors/{instructor.id}/")
+
+        assert response.status_code == 404
+
+    def test_detail_404s_for_unknown_user(self, api_client):
+        response = api_client.get("/api/v1/instructors/00000000-0000-0000-0000-000000000000/")
+
+        assert response.status_code == 404

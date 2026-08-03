@@ -1,5 +1,9 @@
+from django.conf import settings
 from django.contrib import admin
-from django.urls import include, path
+from django.http import Http404
+from django.urls import include, path, re_path
+from django.views.defaults import page_not_found
+from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
@@ -30,3 +34,37 @@ urlpatterns = [
     path("api/v1/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/v1/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
 ]
+
+
+def _serve_media_exempt(request, path, document_root=None):
+    """
+    Not django.conf.urls.static.static()'s default: PDF/video lesson content
+    is displayed in an <iframe>/<video> from the Next.js dev origin
+    (localhost:3000), a different origin than the API (localhost:8000). The
+    global X_FRAME_OPTIONS = "DENY" baseline (see settings/base.py) would
+    otherwise block the browser from framing these files, so this route
+    alone is exempted from that header.
+
+    Not using django.views.decorators.clickjacking.xframe_options_exempt
+    directly on `serve`: that decorator only tags the response object
+    `serve()` *returns*, but a missing file makes `serve()` raise Http404
+    instead of returning — the decorator never runs, and the DENY header
+    ends up back on the 404 page. Catching Http404 here and tagging the
+    resulting 404 response too closes that gap.
+    """
+    try:
+        response = serve(request, path, document_root=document_root)
+    except Http404 as exc:
+        response = page_not_found(request, exc)
+    response.xframe_options_exempt = True
+    return response
+
+
+if settings.DEBUG:
+    urlpatterns += [
+        re_path(
+            rf"^{settings.MEDIA_URL.lstrip('/')}(?P<path>.*)$",
+            _serve_media_exempt,
+            {"document_root": settings.MEDIA_ROOT},
+        ),
+    ]

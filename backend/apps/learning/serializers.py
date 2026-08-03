@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.catalog.models import Course
+from apps.content.models import Lesson, Section
 
 from .models import Bookmark, Certificate, Enrollment, LessonNote, ProgressTracking, WishlistItem
 
@@ -82,7 +83,27 @@ class CertificateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Certificate
-        fields = ["id", "certificate_uid", "course", "qr_payload", "pdf_key", "issued_at"]
+        fields = ["id", "certificate_uid", "course", "qr_payload", "pdf_file", "issued_at"]
+
+
+class CurriculumLessonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = ["id", "title", "lesson_type", "sort_order", "duration_seconds", "is_preview"]
+
+
+class CurriculumSectionSerializer(serializers.ModelSerializer):
+    lessons = CurriculumLessonSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Section
+        fields = ["id", "title", "sort_order", "lessons"]
+
+
+class LessonContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = ["id", "title", "lesson_type", "duration_seconds", "content_file"]
 
 
 class CertificateVerifyResponseSerializer(serializers.Serializer):

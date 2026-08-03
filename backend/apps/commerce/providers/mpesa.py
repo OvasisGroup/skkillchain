@@ -38,16 +38,27 @@ from .base import (
     WebhookVerificationError,
 )
 
-_API_BASE = "https://api.safaricom.co.ke"
+_API_BASES = {
+    "sandbox": "https://sandbox.safaricom.co.ke",
+    "production": "https://api.safaricom.co.ke",
+}
 
 
 class MpesaPaymentProvider(PaymentProvider):
     code = "mpesa"
 
+    @property
+    def _api_base(self) -> str:
+        # Daraja's sandbox and production environments live on entirely
+        # different hosts (not just different credentials) — defaults to
+        # sandbox so an unset/typo'd MPESA_ENVIRONMENT fails safe rather
+        # than accidentally hitting production.
+        return _API_BASES.get(settings.MPESA_ENVIRONMENT, _API_BASES["sandbox"])
+
     def _access_token(self) -> str:
         try:
             response = requests.get(
-                f"{_API_BASE}/oauth/v1/generate",
+                f"{self._api_base}/oauth/v1/generate",
                 params={"grant_type": "client_credentials"},
                 auth=(settings.MPESA_CONSUMER_KEY, settings.MPESA_CONSUMER_SECRET),
                 timeout=10,
@@ -64,6 +75,14 @@ class MpesaPaymentProvider(PaymentProvider):
                 "M-Pesa STK Push requires the buyer's phone_number — it cannot be initiated "
                 "the same way as a redirect/client-secret provider."
             )
+        if currency != "KES":
+            # Daraja has no notion of currency at all — it only ever moves
+            # Kenyan Shillings. Silently sending a USD/etc-denominated
+            # amount would charge that many *shillings*, not convert it —
+            # reject rather than let that happen.
+            raise PaymentProviderError(
+                f"M-Pesa only supports KES-denominated orders; this order is in {currency}."
+            )
         token = self._access_token()
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         password = base64.b64encode(
@@ -72,7 +91,7 @@ class MpesaPaymentProvider(PaymentProvider):
 
         try:
             response = requests.post(
-                f"{_API_BASE}/mpesa/stkpush/v1/processrequest",
+                f"{self._api_base}/mpesa/stkpush/v1/processrequest",
                 headers={"Authorization": f"Bearer {token}"},
                 json={
                     "BusinessShortCode": settings.MPESA_SHORTCODE,

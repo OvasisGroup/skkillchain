@@ -40,6 +40,9 @@ dependencies = [
     # Already pulled in transitively by drf-spectacular; pinned explicitly
     # because scripts/reconcile_openapi_spec.py imports it directly.
     "PyYAML>=6.0,<7.0",
+    # Certificate PDF rendering (apps/learning/certificates.py).
+    "reportlab>=4.2,<5.0",
+    "qrcode[pil]>=7.4,<8.0",
 ]
 
 [project.optional-dependencies]

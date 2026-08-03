@@ -154,6 +154,10 @@ class RecentlyViewed(models.Model):
         return f"{self.user} viewed {self.course}"
 
 
+def certificate_upload_path(instance, filename):
+    return f"certificates/{instance.id}/{filename}"
+
+
 class Certificate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     enrollment = models.OneToOneField(
@@ -161,10 +165,10 @@ class Certificate(models.Model):
     )
     certificate_uid = models.CharField(max_length=40, unique=True, editable=False)
     qr_payload = models.CharField(max_length=500)
-    # Blank until the PDF-rendering/S3-upload pipeline exists (deferred
-    # alongside live_sessions — see M4 commit notes). The certificate is a
-    # real, verifiable record either way; only the downloadable file lags.
-    pdf_key = models.CharField(max_length=500, blank=True)
+    # Rendered lazily by apps.learning.certificates.ensure_certificate_pdf —
+    # populated at issuance time, and self-healed on next read for any
+    # certificate that predates this field or whose render failed.
+    pdf_file = models.FileField(upload_to=certificate_upload_path, blank=True)
     issued_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

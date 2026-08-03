@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiExample, extend_schema
+from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -125,36 +125,62 @@ class InstructorQuizCreateView(APIView):
         return Response(QuizDetailSerializer(quiz).data, status=201)
 
 
-@extend_schema(
-    tags=["Instructor"],
-    request=AssignmentCreateSerializer,
-    responses={201: AssignmentSerializer},
-    description="Creates a written/file assignment for a course the current instructor owns.",
-    examples=[
-        OpenApiExample(
-            "Create assignment",
-            value={
-                "title": "Final Project",
-                "instructions": "Submit a link to your GitHub repo.",
-                "due_policy": "7 days after enrollment",
-            },
-            request_only=True,
-        ),
-        OpenApiExample(
-            "Created",
-            value={
-                "id": "a1b2c3d4-...",
-                "course": "1c2d3e4f-...",
-                "title": "Final Project",
-                "instructions": "Submit a link to your GitHub repo.",
-                "due_policy": "7 days after enrollment",
-            },
-            response_only=True,
-        ),
-    ],
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Instructor"],
+        responses={200: AssignmentSerializer(many=True)},
+        description="Lists assignments for a course the current instructor owns.",
+        examples=[
+            OpenApiExample(
+                "Assignments",
+                value=[
+                    {
+                        "id": "a1b2c3d4-...",
+                        "course": "1c2d3e4f-...",
+                        "title": "Final Project",
+                        "instructions": "Submit a link to your GitHub repo.",
+                        "due_policy": "7 days after enrollment",
+                    }
+                ],
+                response_only=True,
+            ),
+        ],
+    ),
+    post=extend_schema(
+        tags=["Instructor"],
+        request=AssignmentCreateSerializer,
+        responses={201: AssignmentSerializer},
+        description="Creates a written/file assignment for a course the current instructor owns.",
+        examples=[
+            OpenApiExample(
+                "Create assignment",
+                value={
+                    "title": "Final Project",
+                    "instructions": "Submit a link to your GitHub repo.",
+                    "due_policy": "7 days after enrollment",
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Created",
+                value={
+                    "id": "a1b2c3d4-...",
+                    "course": "1c2d3e4f-...",
+                    "title": "Final Project",
+                    "instructions": "Submit a link to your GitHub repo.",
+                    "due_policy": "7 days after enrollment",
+                },
+                response_only=True,
+            ),
+        ],
+    ),
 )
 class InstructorAssignmentCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, course_id):
+        course = _owned_course_or_403(course_id, request.user)
+        return Response(AssignmentSerializer(course.assignments.all(), many=True).data)
 
     def post(self, request, course_id):
         course = _owned_course_or_403(course_id, request.user)

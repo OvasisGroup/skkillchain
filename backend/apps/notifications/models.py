@@ -66,11 +66,13 @@ class Notification(models.Model):
     TYPE_MESSAGE = "message"
     TYPE_SUPPORT_TICKET = "support_ticket"
     TYPE_LIVE_SESSION_REMINDER = "live_session_reminder"
+    TYPE_COURSE_UPDATE = "course_update"
     TYPE_SYSTEM = "system"
     TYPE_CHOICES = [
         (TYPE_MESSAGE, "Message"),
         (TYPE_SUPPORT_TICKET, "Support Ticket"),
         (TYPE_LIVE_SESSION_REMINDER, "Live Session Reminder"),
+        (TYPE_COURSE_UPDATE, "Course Update"),
         (TYPE_SYSTEM, "System"),
     ]
 

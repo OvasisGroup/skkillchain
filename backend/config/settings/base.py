@@ -97,6 +97,13 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {
     "default": env.db("DATABASE_URL"),
 }
+# Without this, Django opens and tears down a brand-new Postgres connection
+# (full TCP+auth handshake) on every single request — a flat latency tax on
+# the whole app, not just one endpoint. 60s persistent connections plus a
+# liveness check before reuse (handles a DB restart/failover without every
+# worker needing a restart too).
+DATABASES["default"]["CONN_MAX_AGE"] = 60
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 CACHES = {
     "default": {
@@ -181,6 +188,12 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Local-disk storage for uploaded lesson content (video/PDF), using Django's
+# default FileSystemStorage backend. Swapping the `STORAGES["default"]`
+# backend (e.g. to S3) later doesn't require touching any model/view code.
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -326,6 +339,10 @@ MPESA_CONSUMER_KEY = env("MPESA_CONSUMER_KEY", default="")
 MPESA_CONSUMER_SECRET = env("MPESA_CONSUMER_SECRET", default="")
 MPESA_SHORTCODE = env("MPESA_SHORTCODE", default="")
 MPESA_PASSKEY = env("MPESA_PASSKEY", default="")
+# "sandbox" (default, api.safaricom.co.ke's separate test host) or
+# "production" — Daraja's two environments live on different hosts, not
+# just different credentials. See apps/commerce/providers/mpesa.py.
+MPESA_ENVIRONMENT = env("MPESA_ENVIRONMENT", default="sandbox")
 # M-Pesa callbacks carry no signature (see providers/mpesa.py docstring) —
 # this secret path segment is the practical substitute for local
 # verification; real IP allowlisting still belongs at the infra layer.

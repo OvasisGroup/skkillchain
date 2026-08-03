@@ -79,7 +79,7 @@ erDiagram
 
 ### Identity and Access
 - users(id, email, password_hash, status, created_at, updated_at)
-- profiles(user_id PK/FK, first_name, last_name, avatar_url, locale, timezone)
+- profiles(user_id PK/FK, first_name, last_name, bio, avatar, locale, timezone, linkedin_url, twitter_url, github_url, youtube_url, website_url)
 - roles(id, code, name, scope)
 - permissions(id, resource, action)
 - user_roles(user_id, role_id, context_type, context_id)

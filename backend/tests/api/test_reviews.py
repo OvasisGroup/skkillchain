@@ -149,7 +149,7 @@ class TestCourseDiscussions:
 
         assert response.status_code == 403
 
-    def test_active_enrollment_can_post(self, student_client, course, active_enrollment):
+    def test_active_enrollment_can_post(self, student_client, student, course, active_enrollment):
         response = student_client.post(
             f"/api/v1/courses/{course.id}/discussions/",
             {"body": "question about lesson 2"},
@@ -157,9 +157,20 @@ class TestCourseDiscussions:
         )
 
         assert response.status_code == 201
+        assert response.data["user_email"] == student.email
         assert CourseDiscussionPost.objects.filter(
             course=course, body="question about lesson 2"
         ).exists()
+
+    def test_list_includes_poster_email(self, api_client, student_client, student, course, active_enrollment):
+        student_client.post(
+            f"/api/v1/courses/{course.id}/discussions/", {"body": "hi everyone"}, format="json"
+        )
+
+        response = api_client.get(f"/api/v1/courses/{course.id}/discussions/")
+
+        assert response.status_code == 200
+        assert response.data["results"][0]["user_email"] == student.email
 
 
 class TestDiscussionWebsocket:

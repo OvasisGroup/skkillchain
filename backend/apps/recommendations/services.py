@@ -32,9 +32,13 @@ def _candidate_courses(user):
     enrolled_course_ids = _enrolled_course_ids(user)
     engaged_category_ids = _engaged_category_ids(enrolled_course_ids)
 
-    qs = Course.objects.filter(status=Course.STATUS_PUBLISHED).exclude(id__in=enrolled_course_ids)
+    qs = (
+        Course.objects.filter(status=Course.STATUS_PUBLISHED)
+        .exclude(id__in=enrolled_course_ids)
+        .select_related("owner")
+    )
     if engaged_category_ids:
-        qs = qs.filter(categories__id__in=engaged_category_ids)
+        qs = qs.filter(category_id__in=engaged_category_ids)
     return qs.annotate(enrollment_count=Count("enrollments")).distinct()
 
 
@@ -70,5 +74,6 @@ def search_courses(query: str, limit: int = 20):
             | Q(summary__icontains=query)
             | Q(description__icontains=query)
         )
+        .select_related("owner")
         .distinct()[:limit]
     )

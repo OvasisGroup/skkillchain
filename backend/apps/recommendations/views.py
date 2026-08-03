@@ -65,5 +65,5 @@ class CourseSearchView(generics.ListAPIView):
     def get_queryset(self):
         query = self.request.query_params.get("q", "").strip()
         if not query:
-            raise ValidationError({"q": "This query parameter is required."})
+            raise ValidationError({"q": ["This query parameter is required."]})
         return services.search_courses(query)

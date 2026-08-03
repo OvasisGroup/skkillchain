@@ -1,6 +1,6 @@
 import pytest
 
-from apps.catalog.models import Course
+from apps.catalog.models import Category, Course
 from apps.content.models import Section
 
 pytestmark = pytest.mark.django_db
@@ -9,6 +9,11 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def instructor(django_user_model):
     return django_user_model.objects.create_user(email="instructor@example.com", password="x")
+
+
+@pytest.fixture
+def category():
+    return Category.objects.create(name="Programming", slug="programming")
 
 
 @pytest.fixture
@@ -23,10 +28,15 @@ def auth_client(api_client, instructor):
 
 
 class TestCourseCreate:
-    def test_create_course_as_draft(self, auth_client, instructor):
+    def test_create_course_as_draft(self, auth_client, instructor, category):
         response = auth_client.post(
             "/api/v1/instructor/courses/",
-            {"title": "New Course", "summary": "A great course", "difficulty": "beginner"},
+            {
+                "title": "New Course",
+                "summary": "A great course",
+                "difficulty": "beginner",
+                "category_id": str(category.id),
+            },
             format="json",
         )
 
@@ -39,11 +49,20 @@ class TestCourseCreate:
         assert str(course.id) == str(response.data["id"])
         assert course.owner_id == instructor.id
         assert course.status == Course.STATUS_DRAFT
+        assert course.category_id == category.id
 
     def test_create_requires_authentication(self, api_client):
         response = api_client.post("/api/v1/instructor/courses/", {"title": "X"}, format="json")
 
         assert response.status_code == 401
+
+    def test_create_requires_category(self, auth_client):
+        response = auth_client.post(
+            "/api/v1/instructor/courses/", {"title": "No Category"}, format="json"
+        )
+
+        assert response.status_code == 400
+        assert "category_id" in response.data["errors"]
 
     def test_list_only_shows_own_courses(self, auth_client, instructor, other_instructor):
         Course.objects.create(owner=instructor, title="Mine")
@@ -88,6 +107,62 @@ class TestCourseUpdate:
         )
 
         assert response.status_code == 400
+
+    def test_owner_can_edit_published_course(self, auth_client, instructor):
+        course = Course.objects.create(owner=instructor, title="Live Course")
+        course.status = Course.STATUS_PUBLISHED
+        course.save(update_fields=["status"])
+
+        response = auth_client.patch(
+            f"/api/v1/instructor/courses/{course.id}/",
+            {"summary": "Refreshed summary"},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        course.refresh_from_db()
+        assert course.summary == "Refreshed summary"
+
+    def test_editing_published_course_notifies_enrolled_students(
+        self, auth_client, instructor, django_user_model, monkeypatch
+    ):
+        from apps.catalog import tasks
+        from apps.learning.models import Enrollment
+        from apps.notifications.models import Notification
+
+        course = Course.objects.create(owner=instructor, title="Live Course")
+        course.status = Course.STATUS_PUBLISHED
+        course.save(update_fields=["status"])
+        student = django_user_model.objects.create_user(email="student@example.com", password="x")
+        Enrollment.objects.create(student=student, course=course)
+
+        # The fan-out runs as a Celery task (see catalog/tasks.py) rather than
+        # inline in the request, so a popular course's edit doesn't block the
+        # web worker for every enrolled student's notification. Run it
+        # synchronously here, same as tests/api/test_ai_generation.py does for
+        # its own dispatch task, to verify the fan-out logic itself.
+        monkeypatch.setattr(tasks.notify_course_update, "delay", tasks.notify_course_update)
+
+        response = auth_client.patch(
+            f"/api/v1/instructor/courses/{course.id}/",
+            {"summary": "New and improved"},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert Notification.objects.filter(user=student, type="course_update").exists()
+
+    def test_editing_draft_course_sends_no_notifications(self, auth_client, instructor):
+        from apps.notifications.models import Notification
+
+        course = Course.objects.create(owner=instructor, title="Still a Draft")
+
+        response = auth_client.patch(
+            f"/api/v1/instructor/courses/{course.id}/", {"summary": "Tweak"}, format="json"
+        )
+
+        assert response.status_code == 200
+        assert not Notification.objects.filter(type="course_update").exists()
 
 
 class TestApprovalWorkflow:

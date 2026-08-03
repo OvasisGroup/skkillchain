@@ -18,6 +18,7 @@ from .models import MFAFactor, OAuthIdentity
 from .oauth.base import OAuthVerificationError
 from .oauth.registry import get_provider
 from .serializers import (
+    AvatarUploadSerializer,
     LogoutSerializer,
     MeSerializer,
     MFAEnrollResponseSerializer,
@@ -66,10 +67,17 @@ def _user_has_confirmed_mfa(user) -> bool:
                 "profile": {
                     "first_name": "",
                     "last_name": "",
-                    "avatar_url": "",
+                    "bio": "",
+                    "avatar": "",
                     "locale": "en",
                     "timezone": "UTC",
+                    "linkedin_url": "",
+                    "twitter_url": "",
+                    "github_url": "",
+                    "youtube_url": "",
+                    "website_url": "",
                 },
+                "roles": [],
             },
             response_only=True,
         ),
@@ -205,10 +213,17 @@ _ME_EXAMPLE = {
     "profile": {
         "first_name": "Ada",
         "last_name": "Lovelace",
-        "avatar_url": "",
+        "bio": "",
+        "avatar": "",
         "locale": "en",
         "timezone": "UTC",
+        "linkedin_url": "",
+        "twitter_url": "",
+        "github_url": "",
+        "youtube_url": "",
+        "website_url": "",
     },
+    "roles": ["student"],
 }
 
 
@@ -220,17 +235,30 @@ _ME_EXAMPLE = {
     ),
     patch=extend_schema(
         tags=["Auth"],
-        description="Partially updates the authenticated user's profile fields.",
+        description="Partially updates the authenticated user's account (email) and/or "
+        "profile fields — name, bio, locale, timezone, and optional social contact links "
+        "(linkedin_url/twitter_url/github_url/youtube_url/website_url). A new email must not "
+        "already belong to another account. Available to any authenticated user, student or "
+        "instructor alike. To change the avatar image itself, use "
+        "POST /auth/me/avatar/ instead — a file can't travel through this JSON endpoint.",
         examples=[
             OpenApiExample(
                 "Update name", value={"profile": {"first_name": "Ada"}}, request_only=True
+            ),
+            OpenApiExample(
+                "Update email and social links",
+                value={
+                    "email": "ada@example.com",
+                    "profile": {"linkedin_url": "https://linkedin.com/in/ada"},
+                },
+                request_only=True,
             ),
             OpenApiExample("Updated", value=_ME_EXAMPLE, response_only=True),
         ],
     ),
     put=extend_schema(
         tags=["Auth"],
-        description="Replaces the authenticated user's profile fields.",
+        description="Replaces the authenticated user's account (email) and profile fields.",
         examples=[OpenApiExample("Updated", value=_ME_EXAMPLE, response_only=True)],
     ),
 )
@@ -240,6 +268,27 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+@extend_schema(
+    tags=["Auth"],
+    request=AvatarUploadSerializer,
+    responses={200: MeSerializer},
+    description="Uploads (or replaces) the authenticated user's avatar image. Send as "
+    "multipart/form-data with a single 'avatar' file field — separate from PATCH /auth/me/ "
+    "since a file can't travel through that JSON endpoint.",
+)
+class AvatarUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = AvatarUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        profile = request.user.profile
+        profile.avatar = serializer.validated_data["avatar"]
+        profile.save(update_fields=["avatar"])
+        return Response(MeSerializer(request.user).data)
 
 
 @extend_schema(

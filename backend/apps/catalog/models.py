@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
@@ -14,13 +15,27 @@ class InvalidCourseTransition(Exception):
     client didn't earn (e.g. publish before approval)."""
 
 
+def course_cover_upload_path(instance, filename):
+    return f"courses/{instance.id}/cover/{filename}"
+
+
+def _unique_slug(model, name, exclude_pk):
+    base = slugify(name)[:100] or "item"
+    slug = base
+    suffix = 1
+    while model.objects.filter(slug=slug).exclude(pk=exclude_pk).exists():
+        suffix += 1
+        slug = f"{base}-{suffix}"
+    return slug
+
+
 class Category(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     parent = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="children"
     )
     name = models.CharField(max_length=150)
-    slug = models.SlugField(max_length=170, unique=True)
+    slug = models.SlugField(max_length=170, unique=True, blank=True)
 
     class Meta:
         db_table = "categories"
@@ -30,11 +45,16 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = _unique_slug(Category, self.name, self.pk)
+        super().save(*args, **kwargs)
+
 
 class Tag(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(max_length=120, unique=True)
+    slug = models.SlugField(max_length=120, unique=True, blank=True)
 
     class Meta:
         db_table = "tags"
@@ -42,6 +62,11 @@ class Tag(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = _unique_slug(Tag, self.name, self.pk)
+        super().save(*args, **kwargs)
 
 
 class Course(TimeStampedModel):
@@ -77,6 +102,7 @@ class Course(TimeStampedModel):
     slug = models.SlugField(max_length=220, unique=True, blank=True)
     summary = models.CharField(max_length=500, blank=True)
     description = models.TextField(blank=True)
+    cover_image = models.ImageField(upload_to=course_cover_upload_path, blank=True)
     language = models.CharField(max_length=10, default="en")
     difficulty = models.CharField(
         max_length=20, choices=DIFFICULTY_CHOICES, default=DIFFICULTY_BEGINNER
@@ -87,8 +113,8 @@ class Course(TimeStampedModel):
     rejection_reason = models.TextField(blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
 
-    categories: models.ManyToManyField = models.ManyToManyField(
-        Category, through="CourseCategory", related_name="courses", blank=True
+    category = models.ForeignKey(
+        Category, null=True, blank=True, on_delete=models.PROTECT, related_name="courses"
     )
     tags: models.ManyToManyField = models.ManyToManyField(
         Tag, through="CourseTag", related_name="courses", blank=True
@@ -97,7 +123,19 @@ class Course(TimeStampedModel):
     class Meta:
         db_table = "courses"
         ordering = ["-created_at"]
-        indexes = [models.Index(fields=["status", "published_at"])]
+        indexes = [
+            models.Index(fields=["status", "published_at"]),
+            # `icontains` search (catalog.views.CourseListView, recommendations
+            # .services.search_courses) can't use a plain btree index — this is
+            # what lets those `q`/free-text searches hit an index instead of a
+            # full sequential scan as the catalog grows. Requires the pg_trgm
+            # extension (enabled by this index's migration).
+            GinIndex(
+                fields=["title", "summary", "description"],
+                name="courses_search_trgm_gin",
+                opclasses=["gin_trgm_ops", "gin_trgm_ops", "gin_trgm_ops"],
+            ),
+        ]
 
     def __str__(self):
         return self.title
@@ -175,20 +213,6 @@ class CourseLearningObjective(models.Model):
 
     def __str__(self):
         return self.text
-
-
-class CourseCategory(models.Model):
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
-
-    class Meta:
-        db_table = "course_categories"
-        constraints = [
-            models.UniqueConstraint(fields=["course", "category"], name="uniq_course_category")
-        ]
-
-    def __str__(self):
-        return f"{self.course} / {self.category}"
 
 
 class CourseTag(models.Model):

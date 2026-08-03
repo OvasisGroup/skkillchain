@@ -44,3 +44,11 @@ class RequestedAtCursorPagination(DefaultCursorPagination):
     """For models with `requested_at` instead of `created_at` (DataErasureRequest)."""
 
     ordering = "-requested_at"
+
+
+class SortOrderCursorPagination(DefaultCursorPagination):
+    """For curriculum models ordered by instructor-assigned position rather than
+    creation time (Section, Lesson) — ascending, since these are read in the
+    order a student progresses through them, not newest-first."""
+
+    ordering = "sort_order"

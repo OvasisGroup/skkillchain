@@ -1,3 +1,5 @@
+from django.contrib.auth import get_user_model
+from django.db.models import Count, Prefetch, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import (
@@ -18,13 +20,19 @@ from apps.content.serializers import SectionSerializer
 from .models import Category, Course, InvalidCourseTransition, Tag
 from .serializers import (
     CategorySerializer,
+    CategoryWriteSerializer,
     CourseDetailSerializer,
     CourseListSerializer,
     CoursePreviewSectionSerializer,
     CourseRejectSerializer,
     CourseWriteSerializer,
+    InstructorDetailSerializer,
+    InstructorListSerializer,
     TagSerializer,
+    TagWriteSerializer,
 )
+
+User = get_user_model()
 
 
 def _owned_course_or_403(course_id, user):
@@ -59,9 +67,13 @@ _COURSE_LIST_EXAMPLE = {
         OpenApiParameter(
             "difficulty", str, description="Filter by difficulty: beginner/intermediate/advanced."
         ),
+        OpenApiParameter("q", str, description="Case-insensitive search over title and summary."),
+        OpenApiParameter(
+            "is_free", bool, description="If true, only free courses; if false, only paid ones."
+        ),
     ],
     description="Lists published courses, optionally filtered by category, language, "
-    "and/or difficulty.",
+    "difficulty, a free-text search, and/or price.",
     examples=[OpenApiExample("Course", value=_COURSE_LIST_EXAMPLE, response_only=True)],
 )
 class CourseListView(generics.ListAPIView):
@@ -69,14 +81,22 @@ class CourseListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        qs = Course.objects.filter(status=Course.STATUS_PUBLISHED)
+        qs = Course.objects.filter(status=Course.STATUS_PUBLISHED).select_related("owner")
         params = self.request.query_params
         if category := params.get("category"):
-            qs = qs.filter(categories__slug=category)
+            qs = qs.filter(category__slug=category)
         if language := params.get("language"):
             qs = qs.filter(language=language)
         if difficulty := params.get("difficulty"):
             qs = qs.filter(difficulty=difficulty)
+        if q := params.get("q"):
+            qs = qs.filter(Q(title__icontains=q) | Q(summary__icontains=q))
+        if (is_free := params.get("is_free")) is not None:
+            qs = (
+                qs.filter(price_amount=0)
+                if is_free.lower() in ("true", "1")
+                else qs.exclude(price_amount=0)
+            )
         return qs.distinct()
 
 
@@ -92,7 +112,7 @@ class CourseListView(generics.ListAPIView):
                 **_COURSE_LIST_EXAMPLE,
                 "description": "A full walkthrough of Python fundamentals and projects.",
                 "rejection_reason": "",
-                "categories": [{"id": "e1f2...", "name": "Programming", "slug": "programming"}],
+                "category": {"id": "e1f2...", "name": "Programming", "slug": "programming"},
                 "tags": [{"id": "a1b2...", "name": "Python", "slug": "python"}],
                 "prerequisites": ["Basic computer literacy"],
                 "learning_objectives": ["Write and run Python scripts", "Use core data types"],
@@ -109,7 +129,9 @@ class CourseDetailView(generics.RetrieveAPIView):
     lookup_field = "id"
 
     def get_queryset(self):
-        return Course.objects.all()
+        return Course.objects.select_related("owner", "category").prefetch_related(
+            "tags", "prerequisites", "learning_objectives"
+        )
 
     def get_object(self):
         course = super().get_object()
@@ -171,40 +193,242 @@ class CoursePreviewView(APIView):
         return Response(data)
 
 
-@extend_schema(
-    tags=["Courses"],
-    description="Lists all course categories, for use as the 'category' filter on GET /courses.",
-    examples=[
-        OpenApiExample(
-            "Category",
-            value={"id": "e1f2a3b4-...", "name": "Programming", "slug": "programming"},
-            response_only=True,
-        )
-    ],
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Courses"],
+        description="Lists all course categories, for use as the 'category' filter on "
+        "GET /courses and as the required category picker when authoring a course.",
+        examples=[
+            OpenApiExample(
+                "Category",
+                value={"id": "e1f2a3b4-...", "name": "Programming", "slug": "programming"},
+                response_only=True,
+            )
+        ],
+    ),
+    post=extend_schema(
+        tags=["Admin"],
+        description="Creates a new category. Requires the categories.manage permission — "
+        "categories are a curated taxonomy, unlike tags which any authenticated user can add.",
+        examples=[
+            OpenApiExample("Create", value={"name": "Programming"}, request_only=True),
+        ],
+    ),
 )
-class CategoryListView(generics.ListAPIView):
-    serializer_class = CategorySerializer
-    permission_classes = [permissions.AllowAny]
+class CategoryListCreateView(generics.ListCreateAPIView):
     queryset = Category.objects.all()
     pagination_class = None
 
+    def get_serializer_class(self):
+        return CategoryWriteSerializer if self.request.method == "POST" else CategorySerializer
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [HasPermission()]
+        return [permissions.AllowAny()]
+
+    required_permission = "categories.manage"
+
+
+@extend_schema_view(
+    get=extend_schema(tags=["Courses"], description="Gets a single category."),
+    patch=extend_schema(
+        tags=["Admin"],
+        description="Partially updates a category. Requires the categories.manage permission.",
+    ),
+    put=extend_schema(
+        tags=["Admin"],
+        description="Replaces a category. Requires the categories.manage permission.",
+    ),
+    delete=extend_schema(
+        tags=["Admin"],
+        description="Deletes a category. Requires the categories.manage permission. Fails "
+        "with 400 if any course still references it (courses always belong to exactly one "
+        "category, so deletion is blocked rather than silently orphaning them).",
+    ),
+)
+class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Category.objects.all()
+    lookup_field = "id"
+
+    def get_serializer_class(self):
+        return CategorySerializer if self.request.method == "GET" else CategoryWriteSerializer
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [permissions.AllowAny()]
+        return [HasPermission()]
+
+    required_permission = "categories.manage"
+
+    def destroy(self, request, *args, **kwargs):
+        category = self.get_object()
+        if category.courses.exists():
+            raise ValidationError(
+                "Cannot delete a category that is still assigned to one or more courses."
+            )
+        return super().destroy(request, *args, **kwargs)
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Courses"],
+        description="Lists all course tags.",
+        examples=[
+            OpenApiExample(
+                "Tag",
+                value={"id": "a1b2c3d4-...", "name": "Python", "slug": "python"},
+                response_only=True,
+            )
+        ],
+    ),
+    post=extend_schema(
+        tags=["Courses"],
+        description="Creates a tag, or returns the existing one if a tag with the same name "
+        "(case-insensitive) already exists — any authenticated user can add tags inline while "
+        "authoring a course, so this is idempotent rather than erroring on a duplicate name.",
+        examples=[OpenApiExample("Create", value={"name": "Python"}, request_only=True)],
+    ),
+)
+class TagListCreateView(generics.ListAPIView):
+    serializer_class = TagSerializer
+    queryset = Tag.objects.all()
+    pagination_class = None
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
+
+    def post(self, request, *args, **kwargs):
+        name = (request.data.get("name") or "").strip()
+        if not name:
+            raise ValidationError({"name": ["This field is required."]})
+
+        tag = Tag.objects.filter(name__iexact=name).first()
+        if tag is not None:
+            return Response(TagSerializer(tag).data)
+
+        tag = Tag.objects.create(name=name)
+        return Response(TagSerializer(tag).data, status=201)
+
+
+@extend_schema_view(
+    get=extend_schema(tags=["Courses"], description="Gets a single tag."),
+    patch=extend_schema(
+        tags=["Admin"],
+        description="Partially updates a tag. Requires the tags.manage permission.",
+    ),
+    put=extend_schema(
+        tags=["Admin"],
+        description="Replaces a tag. Requires the tags.manage permission.",
+    ),
+    delete=extend_schema(
+        tags=["Admin"],
+        description="Deletes a tag. Requires the tags.manage permission.",
+    ),
+)
+class TagDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Tag.objects.all()
+    lookup_field = "id"
+
+    def get_serializer_class(self):
+        return TagSerializer if self.request.method == "GET" else TagWriteSerializer
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [permissions.AllowAny()]
+        return [HasPermission()]
+
+    required_permission = "tags.manage"
+
+
+def _instructor_queryset():
+    # An "instructor" here means "has at least one published course" —
+    # the platform's instructor role is granted on application approval
+    # (apps.moderation.services.approve_instructor_application) before
+    # they've necessarily published anything, so role membership alone
+    # would surface empty profiles on a public directory. Annotated count
+    # is scoped to published courses too, so it always matches what
+    # get_courses() on InstructorDetailSerializer actually lists.
+    # Prefetched onto `_published_courses` so InstructorListSerializer.get_categories()
+    # and InstructorDetailSerializer.get_courses() can read from it in Python
+    # instead of each issuing its own query per instructor (see catalog/serializers.py).
+    published_courses = Prefetch(
+        "owned_courses",
+        queryset=Course.objects.filter(status=Course.STATUS_PUBLISHED).select_related("category"),
+        to_attr="_published_courses",
+    )
+    return (
+        User.objects.filter(owned_courses__status=Course.STATUS_PUBLISHED)
+        .select_related("profile")
+        .prefetch_related(published_courses)
+        .annotate(
+            published_course_count=Count(
+                "owned_courses",
+                filter=Q(owned_courses__status=Course.STATUS_PUBLISHED),
+                distinct=True,
+            )
+        )
+        .distinct()
+        .order_by("-created_at", "email")
+    )
+
 
 @extend_schema(
     tags=["Courses"],
-    description="Lists all course tags.",
+    description="Lists every instructor with at least one published course, newest "
+    "instructor first — the public instructor directory.",
     examples=[
         OpenApiExample(
-            "Tag",
-            value={"id": "a1b2c3d4-...", "name": "Python", "slug": "python"},
+            "Instructor",
+            value={
+                "id": "b6a5b6c0-9b1e-4c9a-9b7a-1f2e3d4c5b6a",
+                "email": "jane@example.com",
+                "profile": {
+                    "first_name": "Jane",
+                    "last_name": "Doe",
+                    "bio": "Backend engineer and educator.",
+                    "avatar": None,
+                    "linkedin_url": "",
+                    "twitter_url": "",
+                    "github_url": "",
+                    "youtube_url": "",
+                    "website_url": "",
+                },
+                "published_course_count": 3,
+                "categories": [
+                    {"id": "e1f2...", "name": "Programming", "slug": "programming"}
+                ],
+            },
             response_only=True,
         )
     ],
 )
-class TagListView(generics.ListAPIView):
-    serializer_class = TagSerializer
+class InstructorListView(generics.ListAPIView):
+    serializer_class = InstructorListSerializer
     permission_classes = [permissions.AllowAny]
-    queryset = Tag.objects.all()
+    queryset = _instructor_queryset()
+    # Deliberately unpaginated (tests/api/test_catalog.py::TestInstructorDirectory
+    # asserts a flat list) — the directory is scoped to users with at least one
+    # published course, which keeps it far smaller than the full user table.
+    # If this grows large enough to matter, paginating it is a frontend-visible
+    # API change, not just a backend one.
     pagination_class = None
+
+
+@extend_schema(
+    tags=["Courses"],
+    description="Gets one instructor's public profile plus every course they've published. "
+    "404s for a user with no published courses, same as a nonexistent instructor.",
+)
+class InstructorDetailView(generics.RetrieveAPIView):
+    serializer_class = InstructorDetailSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        return _instructor_queryset()
 
 
 # ---------- Instructor authoring ----------
@@ -245,7 +469,7 @@ class InstructorCourseListCreateView(generics.ListCreateAPIView):
         return CourseWriteSerializer if self.request.method == "POST" else CourseListSerializer
 
     def get_queryset(self):
-        return Course.objects.filter(owner=self.request.user)
+        return Course.objects.filter(owner=self.request.user).select_related("owner")
 
     def perform_create(self, serializer):
         course = serializer.save()
@@ -270,8 +494,9 @@ class InstructorCourseListCreateView(generics.ListCreateAPIView):
     ),
     patch=extend_schema(
         tags=["Instructor"],
-        description="Partially updates a draft or rejected course. Submitted/approved/"
-        "published courses can't be edited directly — see POST .../submit-review.",
+        description="Partially updates a draft, rejected, or published course. Editing a "
+        "published course notifies every enrolled student. Submitted/approved courses can't "
+        "be edited directly (mid-review) — see POST .../submit-review.",
         examples=[
             OpenApiExample(
                 "Update summary", value={"summary": "Updated summary"}, request_only=True
@@ -280,7 +505,8 @@ class InstructorCourseListCreateView(generics.ListCreateAPIView):
     ),
     put=extend_schema(
         tags=["Instructor"],
-        description="Replaces a draft or rejected course's fields.",
+        description="Replaces a draft, rejected, or published course's fields. Editing a "
+        "published course notifies every enrolled student.",
         examples=[OpenApiExample("Replace course", value=_COURSE_WRITE_EXAMPLE, request_only=True)],
     ),
 )
@@ -294,11 +520,22 @@ class InstructorCourseDetailView(generics.RetrieveUpdateAPIView):
 
     def perform_update(self, serializer):
         course = self.get_object()
-        if course.status not in (Course.STATUS_DRAFT, Course.STATUS_REJECTED):
+        # Blocked only mid-review (submitted/approved, so a moderator isn't
+        # reviewing content that then changes under them) or once archived —
+        # same allowance as content.views._editable_or_400 for section/lesson
+        # edits, so a published course's title/price/etc. can be kept in
+        # sync with its curriculum without unpublishing first.
+        allowed = (Course.STATUS_DRAFT, Course.STATUS_REJECTED, Course.STATUS_PUBLISHED)
+        if course.status not in allowed:
             raise ValidationError(
-                f"Cannot edit a course while it is '{course.status}'; only draft or rejected courses can be edited."
+                f"Cannot edit a course while it is '{course.status}'; only draft, rejected, "
+                "or published courses can be edited."
             )
         serializer.save()
+        if course.status == Course.STATUS_PUBLISHED:
+            from .tasks import notify_course_update
+
+            notify_course_update.delay(str(course.id))
 
 
 @extend_schema(
@@ -380,7 +617,7 @@ class CoursesPendingReviewView(generics.ListAPIView):
     serializer_class = CourseListSerializer
     permission_classes = [HasPermission]
     required_permission = "courses.approve"
-    queryset = Course.objects.filter(status=Course.STATUS_SUBMITTED)
+    queryset = Course.objects.filter(status=Course.STATUS_SUBMITTED).select_related("owner")
 
 
 @extend_schema(

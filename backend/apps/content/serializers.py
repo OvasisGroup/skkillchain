@@ -6,7 +6,15 @@ from .models import Lesson, Section
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
-        fields = ["id", "title", "lesson_type", "sort_order", "duration_seconds", "is_preview"]
+        fields = [
+            "id",
+            "title",
+            "lesson_type",
+            "sort_order",
+            "duration_seconds",
+            "is_preview",
+            "content_file",
+        ]
 
 
 class SectionSerializer(serializers.ModelSerializer):
@@ -25,7 +33,17 @@ class SectionWriteSerializer(serializers.ModelSerializer):
 
 
 class LessonWriteSerializer(serializers.ModelSerializer):
+    content_file = serializers.FileField(required=False, allow_null=True)
+
     class Meta:
         model = Lesson
-        fields = ["id", "title", "lesson_type", "sort_order", "duration_seconds", "is_preview"]
+        fields = [
+            "id",
+            "title",
+            "lesson_type",
+            "sort_order",
+            "duration_seconds",
+            "is_preview",
+            "content_file",
+        ]
         read_only_fields = ["id"]

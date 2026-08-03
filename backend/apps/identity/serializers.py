@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
+from apps.authorization.models import UserRole
+
 from .models import Profile
 
 User = get_user_model()
@@ -69,21 +71,75 @@ class MFALoginVerifySerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    # avatar is read/displayed here, but only ever *written* through the
+    # dedicated POST /auth/me/avatar/ (AvatarUploadView) — a file can't
+    # travel through this field via a plain JSON PATCH, and multipart data
+    # can't populate a serializer nested this deeply, so upload gets its
+    # own single-purpose endpoint instead.
+    avatar = serializers.ImageField(read_only=True)
+
     class Meta:
         model = Profile
-        fields = ["first_name", "last_name", "avatar_url", "locale", "timezone"]
+        fields = [
+            "first_name",
+            "last_name",
+            "bio",
+            "avatar",
+            "locale",
+            "timezone",
+            "linkedin_url",
+            "twitter_url",
+            "github_url",
+            "youtube_url",
+            "website_url",
+        ]
+
+
+class AvatarUploadSerializer(serializers.Serializer):
+    avatar = serializers.ImageField()
 
 
 class MeSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer()
+    roles = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "email", "is_active", "created_at", "profile"]
-        read_only_fields = ["id", "email", "is_active", "created_at"]
+        fields = ["id", "email", "is_active", "created_at", "profile", "roles"]
+        read_only_fields = ["id", "is_active", "created_at", "roles"]
+        # Uniqueness is enforced in validate_email() below instead of DRF's
+        # auto-generated UniqueValidator, so a duplicate email gets the same
+        # message (and normalize_email() casing) as RegisterSerializer rather
+        # than DRF's generic "user with this email already exists.".
+        extra_kwargs = {"email": {"validators": []}}
+
+    def validate_email(self, value):
+        value = User.objects.normalize_email(value)
+        qs = User.objects.filter(email=value)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("An account with this email already exists.")
+        return value
+
+    def get_roles(self, obj) -> list[str]:
+        codes = set(
+            UserRole.objects.filter(user=obj).values_list("role__code", flat=True).distinct()
+        )
+        # user_has_permission() (apps/authorization/permissions.py) already lets
+        # superusers bypass RBAC entirely; reflect that here too, or a superuser
+        # with no UserRole rows reports no roles and the frontend routes them to
+        # the student dashboard instead of admin.
+        if obj.is_superuser:
+            codes.add("super_administrator")
+        return list(codes)
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop("profile", None)
+        email = validated_data.pop("email", None)
+        if email is not None and email != instance.email:
+            instance.email = email
+            instance.save(update_fields=["email"])
         if profile_data:
             for field, value in profile_data.items():
                 setattr(instance.profile, field, value)

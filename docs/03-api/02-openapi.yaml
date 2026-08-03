@@ -177,6 +177,12 @@ paths:
       summary: Replace current user profile
       responses:
         '200': { description: Profile updated }
+  /auth/me/avatar:
+    post:
+      tags: [Auth]
+      summary: Upload or replace the current user's avatar image (multipart/form-data)
+      responses:
+        '200': { description: Avatar updated }
 
   # ---------- Course Catalog ----------
   /courses:
@@ -240,6 +246,55 @@ paths:
       security: []
       responses:
         '200': { description: Category list }
+    post:
+      tags: [Admin]
+      summary: Create a category (requires categories.manage)
+      responses:
+        '201': { description: Category created }
+        '403': { description: Missing categories.manage permission }
+  /categories/{categoryId}:
+    get:
+      tags: [Courses]
+      summary: Get a single category
+      security: []
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Category detail }
+    patch:
+      tags: [Admin]
+      summary: Update a category (requires categories.manage)
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Category updated }
+    put:
+      tags: [Admin]
+      summary: Replace a category (requires categories.manage)
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Category updated }
+    delete:
+      tags: [Admin]
+      summary: Delete a category (requires categories.manage)
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Category deleted }
+        '400': { description: Category is still assigned to one or more courses }
   /tags:
     get:
       tags: [Courses]
@@ -247,6 +302,74 @@ paths:
       security: []
       responses:
         '200': { description: Tag list }
+    post:
+      tags: [Courses]
+      summary: Create a tag, or return the existing one with a matching name (case-insensitive)
+      responses:
+        '200': { description: Existing tag with this name returned }
+        '201': { description: Tag created }
+  /tags/{tagId}:
+    get:
+      tags: [Courses]
+      summary: Get a single tag
+      security: []
+      parameters:
+        - in: path
+          name: tagId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Tag detail }
+    patch:
+      tags: [Admin]
+      summary: Update a tag (requires tags.manage)
+      parameters:
+        - in: path
+          name: tagId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Tag updated }
+    put:
+      tags: [Admin]
+      summary: Replace a tag (requires tags.manage)
+      parameters:
+        - in: path
+          name: tagId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Tag updated }
+    delete:
+      tags: [Admin]
+      summary: Delete a tag (requires tags.manage)
+      parameters:
+        - in: path
+          name: tagId
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Tag deleted }
+  /instructors:
+    get:
+      tags: [Courses]
+      summary: List every instructor with at least one published course
+      security: []
+      responses:
+        '200': { description: Instructor list }
+  /instructors/{instructorId}:
+    get:
+      tags: [Courses]
+      summary: Get an instructor's public profile and their published courses
+      security: []
+      parameters:
+        - in: path
+          name: instructorId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Instructor detail }
+        '404': { description: No such instructor, or they have no published courses }
   # NOTE: a dedicated faceted /search/courses endpoint (text/rating/price
   # filters, sort_by) was planned but never built — GET /courses only
   # supports category/language/difficulty filters. GET /ai/search below is
@@ -278,7 +401,7 @@ paths:
         '200': { description: Course detail }
     patch:
       tags: [Instructor]
-      summary: Update course draft
+      summary: Update a draft, rejected, or published course (notifies enrolled students if published)
       parameters:
         - in: path
           name: courseId
@@ -288,7 +411,7 @@ paths:
         '200': { description: Course updated }
     put:
       tags: [Instructor]
-      summary: Replace course draft
+      summary: Replace a draft, rejected, or published course (notifies enrolled students if published)
       parameters:
         - in: path
           name: courseId

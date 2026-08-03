@@ -151,6 +151,7 @@ class ReviewUpdateDestroyView(
                     "id": "c9d0e1f2-...",
                     "course": "1c2d3e4f-...",
                     "user": "b6a5b6c0-...",
+                    "user_email": "student@example.com",
                     "body": "Does anyone have tips for exercise 3?",
                     "created_at": "2026-02-01T13:00:00Z",
                 },

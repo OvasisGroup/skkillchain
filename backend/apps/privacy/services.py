@@ -35,7 +35,17 @@ def _erase_user_data(user) -> None:
     user.set_unusable_password()
     user.save(update_fields=["email", "is_active", "password"])
 
-    Profile.objects.filter(user=user).update(first_name="", last_name="", avatar_url="")
+    Profile.objects.filter(user=user).update(
+        first_name="",
+        last_name="",
+        bio="",
+        avatar="",
+        linkedin_url="",
+        twitter_url="",
+        github_url="",
+        youtube_url="",
+        website_url="",
+    )
     OAuthIdentity.objects.filter(user=user).delete()
     MFAFactor.objects.filter(user=user).delete()
 

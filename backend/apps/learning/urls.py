@@ -10,6 +10,12 @@ urlpatterns = [
         views.ContinueLearningView.as_view(),
         name="continue-learning",
     ),
+    path(
+        "courses/<uuid:course_id>/curriculum/",
+        views.CourseCurriculumView.as_view(),
+        name="course-curriculum",
+    ),
+    path("lessons/<uuid:id>/content/", views.LessonContentView.as_view(), name="lesson-content"),
     path("students/me/wishlist/", views.WishlistView.as_view(), name="wishlist"),
     path(
         "students/me/wishlist/<uuid:course_id>/",

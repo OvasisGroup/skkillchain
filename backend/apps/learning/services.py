@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from apps.content.models import Lesson
 
+from .certificates import ensure_certificate_pdf
 from .models import Certificate, Enrollment
 
 
@@ -36,8 +37,10 @@ def issue_certificate(enrollment: Enrollment) -> Certificate:
         return existing
 
     uid = secrets.token_hex(10)
-    return Certificate.objects.create(
+    certificate = Certificate.objects.create(
         enrollment=enrollment,
         certificate_uid=uid,
         qr_payload=f"{settings.PUBLIC_APP_URL}/certificates/{uid}/verify",
     )
+    ensure_certificate_pdf(certificate)
+    return certificate

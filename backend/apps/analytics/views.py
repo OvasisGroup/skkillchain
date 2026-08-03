@@ -236,7 +236,7 @@ class CoursePerformanceReportView(APIView):
     def get(self, request):
         course_id = request.query_params.get("course_id")
         if not course_id:
-            raise ValidationError({"course_id": "This query parameter is required."})
+            raise ValidationError({"course_id": ["This query parameter is required."]})
 
         completion = CourseCompletionAggregate.objects.filter(course_id=course_id).first()
         engagement = EngagementDailyAggregate.objects.filter(course_id=course_id).first()
