@@ -13,6 +13,7 @@ import { CourseCoverImage } from "@/components/dashboard/course-builder/CourseCo
 import { LiveSessionsBuilder } from "@/components/dashboard/course-builder/LiveSessionsBuilder";
 import { QuizBuilder } from "@/components/dashboard/course-builder/QuizBuilder";
 import { SectionsBuilder } from "@/components/dashboard/course-builder/SectionsBuilder";
+import { StudentsPanel } from "@/components/dashboard/course-builder/StudentsPanel";
 import { ApiError } from "@/lib/api/client";
 import { listSections } from "@/lib/api/content";
 import {
@@ -254,6 +255,13 @@ export default function CourseBuilderPage() {
 
         {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
       </div>
+
+      <Panel
+        title="Students"
+        subtitle="Everyone enrolled in this course, and how far they've gotten."
+      >
+        <StudentsPanel courseId={course.id} token={accessToken!} />
+      </Panel>
 
       <Panel
         title="Curriculum"

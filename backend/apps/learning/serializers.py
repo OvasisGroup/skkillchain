@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from apps.catalog.models import Course
 from apps.content.models import Lesson, Section
+from apps.identity.serializers import ProfileSerializer
 
 from .models import Bookmark, Certificate, Enrollment, LessonNote, ProgressTracking, WishlistItem
 
@@ -50,6 +51,21 @@ class EnrollmentProgressSerializer(serializers.Serializer):
     status = serializers.CharField()
     overall_percent = serializers.IntegerField()
     lessons = ProgressEntrySerializer(many=True)
+
+
+class StudentSummarySerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    email = serializers.EmailField()
+    profile = ProfileSerializer(read_only=True)
+
+
+class CourseStudentProgressSerializer(serializers.Serializer):
+    enrollment_id = serializers.UUIDField()
+    student = StudentSummarySerializer()
+    status = serializers.CharField()
+    enrolled_at = serializers.DateTimeField()
+    completed_at = serializers.DateTimeField(allow_null=True)
+    overall_percent = serializers.IntegerField()
 
 
 class LessonNoteCreateSerializer(serializers.ModelSerializer):

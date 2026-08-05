@@ -25,6 +25,7 @@ from .serializers import (
     BookmarkCreateSerializer,
     CertificateSerializer,
     CertificateVerifyResponseSerializer,
+    CourseStudentProgressSerializer,
     CurriculumSectionSerializer,
     EnrollmentProgressSerializer,
     EnrollmentSerializer,
@@ -363,6 +364,46 @@ class ProgressDetailView(APIView):
                 }
             ).data
         )
+
+
+@extend_schema(
+    tags=["Instructor"],
+    responses={200: CourseStudentProgressSerializer(many=True)},
+    description="Lists every student enrolled in a course the current user teaches, each with "
+    "their aggregate progress percent — the instructor's course roster view.",
+)
+class InstructorCourseStudentsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, course_id):
+        course = get_object_or_404(Course, pk=course_id)
+        if course.owner_id != request.user.id:
+            raise PermissionDenied("You do not own this course.")
+
+        total_lessons = Lesson.objects.filter(section__course_id=course.id).count()
+        enrollments = (
+            Enrollment.objects.filter(course=course)
+            .select_related("student", "student__profile")
+            .prefetch_related("progress_entries")
+            .order_by("-enrolled_at")
+        )
+
+        rows = []
+        for enrollment in enrollments:
+            summed = sum(p.percent_complete for p in enrollment.progress_entries.all())
+            overall = min(summed // total_lessons, 100) if total_lessons else 0
+            rows.append(
+                {
+                    "enrollment_id": enrollment.id,
+                    "student": enrollment.student,
+                    "status": enrollment.status,
+                    "enrolled_at": enrollment.enrolled_at,
+                    "completed_at": enrollment.completed_at,
+                    "overall_percent": overall,
+                }
+            )
+
+        return Response(CourseStudentProgressSerializer(rows, many=True).data)
 
 
 @extend_schema(

@@ -1,5 +1,12 @@
 import { apiFetch } from "./client";
-import type { Coupon, Course, CourseDetail, CourseWriteResult, CursorPage } from "./types";
+import type {
+  Coupon,
+  Course,
+  CourseDetail,
+  CourseStudentProgress,
+  CourseWriteResult,
+  CursorPage,
+} from "./types";
 
 export interface CourseCreateInput {
   title: string;
@@ -78,6 +85,16 @@ export function publishCourse(courseId: string, token: string): Promise<CourseDe
   return apiFetch<CourseDetail>(`/instructor/courses/${courseId}/publish/`, {
     method: "POST",
     token,
+  });
+}
+
+export function listCourseStudents(
+  courseId: string,
+  token: string
+): Promise<CourseStudentProgress[]> {
+  return apiFetch<CourseStudentProgress[]>(`/instructor/courses/${courseId}/students/`, {
+    token,
+    cache: "no-store",
   });
 }
 

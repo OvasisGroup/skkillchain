@@ -15,6 +15,11 @@ urlpatterns = [
         views.CourseCurriculumView.as_view(),
         name="course-curriculum",
     ),
+    path(
+        "instructor/courses/<uuid:course_id>/students/",
+        views.InstructorCourseStudentsView.as_view(),
+        name="instructor-course-students",
+    ),
     path("lessons/<uuid:id>/content/", views.LessonContentView.as_view(), name="lesson-content"),
     path("students/me/wishlist/", views.WishlistView.as_view(), name="wishlist"),
     path(

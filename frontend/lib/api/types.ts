@@ -224,6 +224,23 @@ export interface WishlistItem {
   added_at: string;
 }
 
+// ---------------------------------------------------------------------------
+// Instructor dashboard
+// ---------------------------------------------------------------------------
+
+export interface CourseStudentProgress {
+  enrollment_id: string;
+  student: {
+    id: string;
+    email: string;
+    profile: Profile;
+  };
+  status: string;
+  enrolled_at: string;
+  completed_at: string | null;
+  overall_percent: number;
+}
+
 export interface Notification {
   id: string;
   type: string;
