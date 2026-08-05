@@ -15,6 +15,11 @@ urlpatterns = [
         name="checkout-apply-gift-card",
     ),
     path("checkout/orders/<uuid:order_id>/pay/", views.PayOrderView.as_view(), name="checkout-pay"),
+    path(
+        "checkout/orders/<uuid:order_id>/",
+        views.OrderDetailView.as_view(),
+        name="checkout-order-detail",
+    ),
     path("payments/", views.PaymentListView.as_view(), name="payment-list"),
     path("invoices/", views.InvoiceListView.as_view(), name="invoice-list"),
     path("refunds/", views.RefundCreateView.as_view(), name="refund-create"),

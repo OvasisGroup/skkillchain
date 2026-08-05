@@ -185,6 +185,40 @@ class ApplyGiftCardView(APIView):
 
 @extend_schema(
     tags=["Payments"],
+    responses={200: OrderSerializer},
+    description="Fetches an order's current status plus its latest payment attempt. Intended "
+    "for polling after starting an async payment (e.g. M-Pesa STK push) whose confirmation "
+    "arrives later via webhook rather than in the pay response.",
+    examples=[
+        OpenApiExample(
+            "Order still pending",
+            value={
+                **_ORDER_EXAMPLE,
+                "latest_payment": {
+                    "id": "a4b5c6d7-...",
+                    "order": "e1f2a3b4-...",
+                    "provider": "mpesa",
+                    "provider_payment_id": "ws_CO_...",
+                    "status": "pending",
+                    "amount": "49.99",
+                    "currency": "USD",
+                    "paid_at": None,
+                },
+            },
+            response_only=True,
+        ),
+    ],
+)
+class OrderDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, order_id):
+        order = _owned_order_or_404(order_id, request.user)
+        return Response(OrderSerializer(order).data)
+
+
+@extend_schema(
+    tags=["Payments"],
     request=PaySerializer,
     responses={200: PayResponseSerializer},
     description="Starts payment for a pending order via the given provider. If the order "

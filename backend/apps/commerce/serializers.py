@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .models import Coupon, GiftCard, Invoice, Order, OrderItem, Payment, Promotion, Refund
@@ -25,8 +26,28 @@ class OrderCreateSerializer(serializers.Serializer):
         return value
 
 
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = [
+            "id",
+            "order",
+            "provider",
+            "provider_payment_id",
+            "status",
+            "amount",
+            "currency",
+            "paid_at",
+        ]
+
+
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    # Lets the client poll a single endpoint to learn both "did the order
+    # finalize" (status) and "what's the async provider's payment doing"
+    # (e.g. an M-Pesa STK push still awaiting the user's PIN on their phone)
+    # without a separate request against /payments/.
+    latest_payment = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -40,8 +61,14 @@ class OrderSerializer(serializers.ModelSerializer):
             "total_amount",
             "currency",
             "items",
+            "latest_payment",
             "created_at",
         ]
+
+    @extend_schema_field(PaymentSerializer(allow_null=True))
+    def get_latest_payment(self, order):
+        payment = order.payments.order_by("-created_at").first()
+        return PaymentSerializer(payment).data if payment else None
 
 
 class ApplyCouponSerializer(serializers.Serializer):
@@ -66,21 +93,6 @@ class PaySerializer(serializers.Serializer):
     provider = serializers.ChoiceField(choices=PAYMENT_PROVIDER_CHOICES)
     # Only meaningful for mpesa — see apps/commerce/providers/mpesa.py.
     phone_number = serializers.CharField(required=False, allow_blank=True)
-
-
-class PaymentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Payment
-        fields = [
-            "id",
-            "order",
-            "provider",
-            "provider_payment_id",
-            "status",
-            "amount",
-            "currency",
-            "paid_at",
-        ]
 
 
 class PayResponseSerializer(serializers.Serializer):

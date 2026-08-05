@@ -4,11 +4,10 @@ from datetime import timedelta
 from celery import shared_task
 from django.utils import timezone
 
-from shared.crypto import decrypt
-
 from .conferencing.base import ConferencingProviderError
 from .conferencing.registry import get_provider
 from .models import LiveSession, LiveSessionRecording, LiveSessionRegistration
+from .services import get_valid_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -74,8 +73,8 @@ def poll_google_meet_recordings() -> int:
         provider_adapter = get_provider(live_session.provider)
         if provider_adapter is None:
             continue
-        access_token = decrypt(account.access_token_encrypted)
         try:
+            access_token = get_valid_access_token(account)
             recording = provider_adapter.get_recording(
                 access_token, live_session.external_meeting_id
             )

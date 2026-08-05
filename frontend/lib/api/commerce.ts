@@ -13,6 +13,13 @@ export function createOrder(
   });
 }
 
+// Poll this while a payment is pending — async providers (M-Pesa's STK
+// push, in particular) confirm via a provider webhook that lands well after
+// the pay response, not synchronously in payOrder()'s return value.
+export function getOrder(orderId: string, token: string): Promise<Order> {
+  return apiFetch<Order>(`/checkout/orders/${orderId}/`, { token, cache: "no-store" });
+}
+
 export function applyCoupon(orderId: string, code: string, token: string): Promise<Order> {
   return apiFetch<Order>(`/checkout/orders/${orderId}/apply-coupon/`, {
     method: "POST",

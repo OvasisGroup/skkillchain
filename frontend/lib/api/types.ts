@@ -635,6 +635,7 @@ export interface Order {
   total_amount: string;
   currency: string;
   items: OrderItem[];
+  latest_payment: Payment | null;
   created_at: string;
 }
 

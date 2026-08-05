@@ -198,6 +198,67 @@ class TestPayOrder:
         assert response.status_code == 400
 
 
+class TestOrderDetail:
+    def test_reflects_pending_payment_then_paid_after_webhook_finalizes(
+        self, api_client, buyer_client, course, buyer, settings
+    ):
+        settings.STRIPE_WEBHOOK_SECRET = "whsec_test"
+        order_resp = buyer_client.post(
+            "/api/v1/checkout/orders/",
+            {"items": [{"item_type": "course", "item_id": str(course.id)}]},
+            format="json",
+        )
+        order_id = order_resp.data["id"]
+        Payment.objects.create(
+            order_id=order_id,
+            provider="stripe",
+            provider_payment_id="pi_live_pending",
+            status=Payment.STATUS_PENDING,
+            amount=Decimal("50.00"),
+        )
+
+        pending_resp = buyer_client.get(f"/api/v1/checkout/orders/{order_id}/")
+        assert pending_resp.status_code == 200
+        assert pending_resp.data["status"] == "pending"
+        assert pending_resp.data["latest_payment"]["status"] == "pending"
+
+        payload = json.dumps(
+            {
+                "id": "evt_order_detail",
+                "type": "payment_intent.succeeded",
+                "data": {"object": {"id": "pi_live_pending"}},
+            }
+        )
+        timestamp = str(int(time.time()))
+        signed_payload = f"{timestamp}.{payload}".encode()
+        signature = hmac.new(b"whsec_test", signed_payload, hashlib.sha256).hexdigest()
+        webhook_resp = api_client.post(
+            "/api/v1/webhooks/stripe/",
+            data=payload,
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE=f"t={timestamp},v1={signature}",
+        )
+        assert webhook_resp.status_code == 200
+
+        paid_resp = buyer_client.get(f"/api/v1/checkout/orders/{order_id}/")
+        assert paid_resp.data["status"] == "paid"
+        assert paid_resp.data["latest_payment"]["status"] == "succeeded"
+        assert Enrollment.objects.filter(student=buyer, course=course).exists()
+
+    def test_cannot_view_another_buyers_order(self, api_client, buyer_client, course, instructor):
+        order_resp = buyer_client.post(
+            "/api/v1/checkout/orders/",
+            {"items": [{"item_type": "course", "item_id": str(course.id)}]},
+            format="json",
+        )
+        other_client = api_client
+        other_client.force_authenticate(user=instructor)
+
+        response = other_client.get(f"/api/v1/checkout/orders/{order_resp.data['id']}/")
+
+        assert response.status_code == 404
+
+
 class TestStripeWebhookEndToEnd:
     def _post_stripe_event(self, api_client, event_id, event_type, provider_payment_id, secret):
         payload = json.dumps(

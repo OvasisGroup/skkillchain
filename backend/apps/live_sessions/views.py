@@ -12,12 +12,13 @@ from rest_framework.views import APIView
 from apps.audit.services import record_event
 from apps.catalog.models import Course
 from apps.learning.models import Enrollment
-from shared.crypto import decrypt, encrypt
+from shared.crypto import encrypt
 
 from . import oauth_state
 from .conferencing.base import ConferencingProviderError
 from .conferencing.registry import get_provider
 from .models import ConferencingAccount, LiveSession, LiveSessionRegistration
+from .services import get_valid_access_token
 from .serializers import (
     ConferencingAccountSerializer,
     ConnectResponseSerializer,
@@ -259,8 +260,8 @@ class LiveSessionScheduleView(APIView):
             raise ValidationError("provider must match the connected conferencing account.")
 
         provider_adapter = get_provider(account.provider)
-        access_token = decrypt(account.access_token_encrypted)
         try:
+            access_token = get_valid_access_token(account)
             meeting = provider_adapter.create_meeting(
                 access_token,
                 title=data["title"],
@@ -359,7 +360,7 @@ class LiveSessionCancelView(APIView):
 
         try:
             provider_adapter = get_provider(live_session.provider)
-            access_token = decrypt(live_session.conferencing_account.access_token_encrypted)
+            access_token = get_valid_access_token(live_session.conferencing_account)
             provider_adapter.cancel_meeting(access_token, live_session.external_meeting_id)
         except ConferencingProviderError as exc:
             # Best-effort: still cancel locally so students stop seeing it

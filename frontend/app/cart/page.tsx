@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ErrorState, LoadingState } from "@/components/dashboard/DashboardStates";
 import { ApiError } from "@/lib/api/client";
-import { applyCoupon, applyGiftCard, createOrder, payOrder } from "@/lib/api/commerce";
+import { applyCoupon, applyGiftCard, createOrder, getOrder, payOrder } from "@/lib/api/commerce";
 import { listMyCourses } from "@/lib/api/enrollments";
 import type { Enrollment, Order, PayResponse, PaymentProviderCode } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useCart } from "@/lib/cart/CartContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 const STATUS_STYLES: Record<string, string> = {
   active: "bg-teal-400/10 text-teal-400",
@@ -32,7 +33,7 @@ export default function CartPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-16">
-      <div className="max-w-2xl">
+      <Reveal className="max-w-2xl">
         <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">My learning</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           Cart
@@ -40,7 +41,7 @@ export default function CartPage() {
         <p className="mt-3 text-lg text-foreground/60">
           Review courses you&apos;re about to buy, or jump into ones you already own.
         </p>
-      </div>
+      </Reveal>
 
       <div className="mt-8 flex gap-2 border-b border-border">
         <button
@@ -89,6 +90,50 @@ function CartTab({ onPurchased }: { onPurchased: () => void }) {
   const [giftCardCode, setGiftCardCode] = useState("");
   const [applyBusy, setApplyBusy] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [pollTimedOut, setPollTimedOut] = useState(false);
+
+  // Async providers (M-Pesa's STK push, in particular) confirm via webhook
+  // well after payOrder() returns "pending" — poll order status until the
+  // webhook lands, the payment fails, or we give up.
+  useEffect(() => {
+    if (!accessToken || !order || payResult?.payment.status !== "pending" || pollTimedOut) return;
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 40; // ~2 minutes at 3s
+    const orderId = order.id;
+    const intervalId = setInterval(async () => {
+      attempts += 1;
+      try {
+        const latest = await getOrder(orderId, accessToken);
+        if (cancelled) return;
+        setOrder(latest);
+        if (latest.status === "paid") {
+          clearInterval(intervalId);
+          clear();
+          setStep("paid");
+        } else if (latest.latest_payment?.status === "failed") {
+          clearInterval(intervalId);
+          setError("Payment failed. You can try again with a different method.");
+        } else if (attempts >= maxAttempts) {
+          clearInterval(intervalId);
+          setPollTimedOut(true);
+        }
+      } catch {
+        if (!cancelled && attempts >= maxAttempts) {
+          clearInterval(intervalId);
+          setPollTimedOut(true);
+        }
+      }
+    }, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+    // Re-runs only when a fresh pay attempt starts (order id or payment
+    // status changes) — polling ticks themselves update `order`, not this
+    // dependency list, so they don't restart the interval.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, order?.id, payResult?.payment.status, pollTimedOut]);
 
   async function handleCheckout() {
     if (!accessToken || items.length === 0) return;
@@ -143,6 +188,7 @@ function CartTab({ onPurchased }: { onPurchased: () => void }) {
     if (!accessToken || !order) return;
     setBusy(true);
     setError(null);
+    setPollTimedOut(false);
     try {
       const result = await payOrder(
         order.id,
@@ -195,7 +241,7 @@ function CartTab({ onPurchased }: { onPurchased: () => void }) {
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-      <div className="space-y-3 lg:col-span-2">
+      <Reveal className="space-y-3 lg:col-span-2" stagger={0.08}>
         {items.map((course) => (
           <div
             key={course.id}
@@ -227,7 +273,7 @@ function CartTab({ onPurchased }: { onPurchased: () => void }) {
             </div>
           </div>
         ))}
-      </div>
+      </Reveal>
 
       <div className="rounded-2xl border border-border bg-surface p-6">
         {step === "idle" && (
@@ -378,7 +424,7 @@ function CartTab({ onPurchased }: { onPurchased: () => void }) {
 
             {payResult && payResult.payment.status !== "succeeded" && (
               <div className="mt-4 rounded-lg border border-border-strong bg-background p-3 text-xs text-foreground/70">
-                <p>Payment status: {payResult.payment.status}</p>
+                <p>Payment status: {order.latest_payment?.status ?? payResult.payment.status}</p>
                 {payResult.redirect_url && (
                   <a
                     href={payResult.redirect_url}
@@ -392,6 +438,31 @@ function CartTab({ onPurchased }: { onPurchased: () => void }) {
                     The provider returned a client secret for its own SDK to confirm — this build
                     doesn&apos;t embed that SDK, so payment can&apos;t be finished here.
                   </p>
+                )}
+                {provider === "mpesa" &&
+                  !payResult.redirect_url &&
+                  !payResult.client_secret &&
+                  order.latest_payment?.status === "pending" &&
+                  !pollTimedOut && (
+                    <p className="mt-2">
+                      Enter your M-Pesa PIN on your phone to approve the STK push. This page will
+                      update automatically once it&apos;s confirmed.
+                    </p>
+                  )}
+                {pollTimedOut && (
+                  <div className="mt-2">
+                    <p>
+                      Still waiting on confirmation. If you already approved this on your phone,
+                      it can take a little longer to reflect here.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setPollTimedOut(false)}
+                      className="mt-2 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-surface-hover"
+                    >
+                      Check again
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -441,7 +512,7 @@ function MyCoursesTab() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" stagger={0.08}>
       {enrollments.map((enrollment) => (
         <Link
           key={enrollment.id}
@@ -470,6 +541,6 @@ function MyCoursesTab() {
           </div>
         </Link>
       ))}
-    </div>
+    </Reveal>
   );
 }

@@ -230,6 +230,67 @@ class TestLiveSessionSchedule:
         assert session.join_url == "https://zoom.us/j/42"
         assert session.external_meeting_id == "42"
 
+    def test_schedule_refreshes_expired_token_before_creating_meeting(
+        self, instructor_client, course, conferencing_account, monkeypatch
+    ):
+        # Reproduces the reported bug: an access token that went stale
+        # (Zoom/Google both expire theirs in ~1 hour) used to be sent to
+        # the provider as-is and come back a bare 401 — this asserts the
+        # schedule call now refreshes it first and still succeeds.
+        conferencing_account.token_expires_at = timezone.now() - timedelta(minutes=5)
+        conferencing_account.save(update_fields=["token_expires_at"])
+
+        def _fake_post(url, *a, **k):
+            if url.endswith("/oauth/token"):
+                return type(
+                    "R",
+                    (),
+                    {
+                        "status_code": 200,
+                        "json": lambda self: {
+                            "access_token": "refreshed-at",
+                            "refresh_token": "refreshed-rt",
+                            "expires_in": 3600,
+                        },
+                    },
+                )()
+            return type(
+                "R",
+                (),
+                {
+                    "status_code": 201,
+                    "json": lambda self: {
+                        "id": 77,
+                        "join_url": "https://zoom.us/j/77",
+                        "start_url": "https://zoom.us/s/77",
+                    },
+                },
+            )()
+
+        monkeypatch.setattr("apps.live_sessions.conferencing.zoom.requests.post", _fake_post)
+        start = timezone.now() + timedelta(days=1)
+        end = start + timedelta(hours=1)
+
+        response = instructor_client.post(
+            f"/api/v1/instructor/courses/{course.id}/live-sessions/",
+            {
+                "conferencing_account_id": str(conferencing_account.id),
+                "provider": "zoom",
+                "title": "Deep Dive",
+                "scheduled_start_at": start.isoformat(),
+                "scheduled_end_at": end.isoformat(),
+            },
+            format="json",
+        )
+
+        assert response.status_code == 201
+        session = LiveSession.objects.get(id=response.data["id"])
+        assert session.external_meeting_id == "77"
+        conferencing_account.refresh_from_db()
+        from shared.crypto import decrypt
+
+        assert decrypt(conferencing_account.access_token_encrypted) == "refreshed-at"
+
     def test_schedule_rejects_end_before_start(
         self, instructor_client, course, conferencing_account
     ):

@@ -52,11 +52,38 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
   token?: string;
 }
 
-export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, token, headers, ...rest } = options;
-  const isFormData = body instanceof FormData;
+// Set by AuthContext once a session exists. Resolves to a fresh access token
+// after refreshing (and persisting the rotated refresh token), or null if
+// the refresh token itself is no longer valid — 15-minute access tokens mean
+// this fires routinely, not just after long idle periods.
+type RefreshHandler = () => Promise<string | null>;
+let refreshHandler: RefreshHandler | null = null;
+// Concurrent 401s during the same tick must share one refresh call — the
+// backend blacklists the old refresh token on rotation, so a second call
+// made before the first resolves would invalidate the session.
+let refreshPromise: Promise<string | null> | null = null;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+export function setRefreshHandler(handler: RefreshHandler | null): void {
+  refreshHandler = handler;
+}
+
+function requestRefresh(): Promise<string | null> {
+  if (!refreshHandler) return Promise.resolve(null);
+  if (!refreshPromise) {
+    refreshPromise = refreshHandler().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+async function rawFetch(
+  path: string,
+  { body, headers, ...rest }: Omit<RequestOptions, "token">,
+  token: string | undefined
+): Promise<Response> {
+  const isFormData = body instanceof FormData;
+  return fetch(`${API_BASE_URL}${path}`, {
     ...rest,
     headers: {
       // FormData bodies must NOT set Content-Type manually — fetch sets it
@@ -67,7 +94,9 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     },
     body: isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
   });
+}
 
+async function parseResponse<T>(response: Response): Promise<T> {
   if (response.status === 204) {
     return undefined as T;
   }
@@ -82,4 +111,20 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   }
 
   return data as T;
+}
+
+export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { token, ...rest } = options;
+  const response = await rawFetch(path, rest, token);
+
+  // Only authenticated requests are eligible for retry — an unauthenticated
+  // 401 (e.g. bad login credentials) has no token to refresh.
+  if (response.status === 401 && token) {
+    const newToken = await requestRefresh();
+    if (newToken) {
+      return parseResponse<T>(await rawFetch(path, rest, newToken));
+    }
+  }
+
+  return parseResponse<T>(response);
 }

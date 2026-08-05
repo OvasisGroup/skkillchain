@@ -9,6 +9,16 @@ export function login(email: string, password: string): Promise<LoginResult> {
   return apiFetch<LoginResult>("/auth/login/", { method: "POST", body: { email, password } });
 }
 
+// ROTATE_REFRESH_TOKENS is on backend-side, so every refresh call returns a
+// new refresh token too (and blacklists the one just used) — callers must
+// persist both, not just the access token.
+export function refresh(refreshToken: string): Promise<TokenPair> {
+  return apiFetch<TokenPair>("/auth/token/refresh/", {
+    method: "POST",
+    body: { refresh: refreshToken },
+  });
+}
+
 export function verifyMfaLogin(mfaToken: string, code: string): Promise<TokenPair> {
   return apiFetch<TokenPair>("/auth/mfa/login-verify/", {
     method: "POST",
