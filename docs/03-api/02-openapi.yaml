@@ -13,6 +13,8 @@ tags:
   - name: Instructor
   - name: Student
   - name: LiveSessions
+  - name: Hackathons
+  - name: HackathonOrganizer
   - name: Assessments
   - name: Payments
   - name: Messaging
@@ -852,6 +854,184 @@ paths:
       responses:
         '200': { description: Recording metadata and playback URL }
         '404': { description: Recording not yet available }
+
+  # ---------- Hackathons ----------
+  /hackathons:
+    get:
+      tags: [Hackathons]
+      summary: Browse hackathons (active by default; upcoming/completed/all via ?scope=)
+      security: []
+      parameters:
+        - in: query
+          name: scope
+          schema: { type: string, enum: [active, upcoming, completed, all], default: active }
+        - in: query
+          name: host_type
+          schema: { type: string, enum: [internal, partner] }
+      responses:
+        '200': { description: Hackathon list }
+  /hackathons/{hackathonId}:
+    get:
+      tags: [Hackathons]
+      summary: Get a hackathon's full detail, including its winners
+      security: []
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Hackathon detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hackathon'
+        '404': { description: "Draft hackathon (unless you're the organizer), or nonexistent" }
+  /hackathons/{hackathonId}/register:
+    post:
+      tags: [Hackathons]
+      summary: Register for a hackathon
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Registered }
+        '200': { description: Already registered }
+        '400': { description: 'Registration closed, or the hackathon is at capacity' }
+    delete:
+      tags: [Hackathons]
+      summary: Withdraw a hackathon registration
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Withdrawn }
+  /hackathons/{hackathonId}/submission:
+    post:
+      tags: [Hackathons]
+      summary: Submit (or replace) a project for a hackathon the current user is registered for
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Submission created }
+        '200': { description: Submission updated }
+        '400': { description: The submission deadline has passed }
+        '403': { description: Not registered for this hackathon }
+  /students/me/hackathons:
+    get:
+      tags: [Hackathons]
+      summary: List the current user's own hackathon registrations
+      responses:
+        '200': { description: Registration list }
+  /organizer/hackathons:
+    get:
+      tags: [HackathonOrganizer]
+      summary: List hackathons the current user organizes
+      responses:
+        '200': { description: Hackathon list }
+    post:
+      tags: [HackathonOrganizer]
+      summary: Create a hackathon, internally hosted or in partnership with another organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HackathonCreateRequest'
+      responses:
+        '201':
+          description: Hackathon created (starts as a draft — call publish to make it visible)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hackathon'
+  /organizer/hackathons/{hackathonId}:
+    get:
+      tags: [HackathonOrganizer]
+      summary: Get a hackathon the current user organizes
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Hackathon detail }
+    patch:
+      tags: [HackathonOrganizer]
+      summary: Update a hackathon the current user organizes
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Hackathon updated }
+  /organizer/hackathons/{hackathonId}/publish:
+    post:
+      tags: [HackathonOrganizer]
+      summary: Publish a draft hackathon, making it visible to students
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Hackathon published }
+        '400': { description: Not in draft status }
+  /organizer/hackathons/{hackathonId}/cancel:
+    post:
+      tags: [HackathonOrganizer]
+      summary: Cancel a hackathon
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Hackathon canceled }
+  /organizer/hackathons/{hackathonId}/registrations:
+    get:
+      tags: [HackathonOrganizer]
+      summary: List registrants and submissions for a hackathon the current user organizes
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Registration list }
+  /organizer/hackathons/{hackathonId}/winners:
+    post:
+      tags: [HackathonOrganizer]
+      summary: Declare a winner (placement) for a registration's submitted project
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Winner declared }
+        '400': { description: 'Placement/submission already used, or the registration has no submission' }
+  /admin/hackathons/{hackathonId}/cancel:
+    post:
+      tags: [Admin]
+      summary: Force-cancel any hackathon (moderation override — requires hackathons.manage)
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Hackathon canceled }
+        '403': { description: Missing the hackathons.manage permission }
 
   # ---------- Assessments ----------
   /quizzes/{quizId}:
@@ -1781,6 +1961,60 @@ components:
         status: { type: string, enum: [scheduled, live, ended, canceled] }
         scheduled_start_at: { type: string, format: date-time }
         scheduled_end_at: { type: string, format: date-time }
+    HackathonCreateRequest:
+      type: object
+      required: [title, registration_deadline, submission_deadline, starts_at, ends_at]
+      properties:
+        title: { type: string }
+        host_type: { type: string, enum: [internal, partner], default: internal }
+        partner_name: { type: string, description: Required when host_type is 'partner'. }
+        partner_url: { type: string }
+        summary: { type: string }
+        description: { type: string }
+        requirements: { type: string, description: Eligibility, team, and submission requirements. }
+        prize_summary: { type: string, example: "$10,000 in prizes" }
+        registration_opens_at: { type: string, format: date-time, nullable: true }
+        registration_deadline: { type: string, format: date-time }
+        submission_deadline: { type: string, format: date-time }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        capacity: { type: integer, nullable: true }
+    Hackathon:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        slug: { type: string }
+        summary: { type: string }
+        description: { type: string }
+        host_type: { type: string, enum: [internal, partner] }
+        partner_name: { type: string }
+        requirements: { type: string }
+        prize_summary: { type: string }
+        registration_deadline: { type: string, format: date-time }
+        submission_deadline: { type: string, format: date-time }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        capacity: { type: integer, nullable: true }
+        registered_count: { type: integer }
+        status: { type: string, enum: [draft, published, canceled] }
+        phase:
+          type: string
+          enum: [draft, upcoming, active, completed, canceled]
+          description: Derived from status + starts_at/ends_at at read time — not a stored column.
+        winners:
+          type: array
+          items:
+            type: object
+            properties:
+              placement: { type: integer }
+              prize_description: { type: string }
+              submission:
+                type: object
+                properties:
+                  title: { type: string }
+                  repo_url: { type: string }
+                  demo_url: { type: string }
         timezone: { type: string }
         external_meeting_id: { type: string }
         host_join_url: { type: string }

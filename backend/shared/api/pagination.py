@@ -46,6 +46,26 @@ class RequestedAtCursorPagination(DefaultCursorPagination):
     ordering = "-requested_at"
 
 
+class StartsAtCursorPagination(DefaultCursorPagination):
+    """For Hackathon browsing ordered by start time, soonest first (active/
+    upcoming lists) rather than newest-created first."""
+
+    ordering = "starts_at"
+
+
+class EndsAtDescCursorPagination(DefaultCursorPagination):
+    """For Hackathon "completed" lists — most recently finished first."""
+
+    ordering = "-ends_at"
+
+
+class RegisteredAtCursorPagination(DefaultCursorPagination):
+    """For models with `registered_at` instead of `created_at`
+    (HackathonRegistration)."""
+
+    ordering = "-registered_at"
+
+
 class SortOrderCursorPagination(DefaultCursorPagination):
     """For curriculum models ordered by instructor-assigned position rather than
     creation time (Section, Lesson) — ascending, since these are read in the

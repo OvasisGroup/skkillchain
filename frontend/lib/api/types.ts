@@ -714,6 +714,163 @@ export interface LiveSessionRecording {
   available_at: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Hackathons
+// ---------------------------------------------------------------------------
+
+export type HackathonHostType = "internal" | "partner";
+export type HackathonStatus = "draft" | "published" | "canceled";
+// Derived server-side from status + starts_at/ends_at — not a stored column.
+export type HackathonPhase = "draft" | "upcoming" | "active" | "completed" | "canceled";
+export type HackathonRegistrationStatus = "registered" | "withdrawn" | "disqualified";
+
+export interface HackathonOrganizer {
+  id: string;
+  email: string;
+}
+
+export interface HackathonSummary {
+  id: string;
+  title: string;
+  slug: string;
+  starts_at: string;
+  ends_at: string;
+  status: HackathonStatus;
+}
+
+export interface Hackathon {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string;
+  cover_image: string | null;
+  host_type: HackathonHostType;
+  partner_name: string;
+  prize_summary: string;
+  organizer: HackathonOrganizer;
+  registration_deadline: string;
+  submission_deadline: string;
+  starts_at: string;
+  ends_at: string;
+  capacity: number | null;
+  status: HackathonStatus;
+  phase: HackathonPhase;
+}
+
+export interface HackathonWinner {
+  id: string;
+  placement: number;
+  prize_description: string;
+  submission: HackathonSubmission;
+  participant: HackathonOrganizer;
+  announced_at: string;
+}
+
+export interface HackathonDetail extends Hackathon {
+  description: string;
+  partner_url: string;
+  requirements: string;
+  registration_opens_at: string | null;
+  registered_count: number;
+  is_registration_open: boolean;
+  published_at: string | null;
+  winners: HackathonWinner[];
+  created_at: string;
+  updated_at: string;
+}
+
+// Shape returned by the organizer create/update endpoint — narrower than
+// Hackathon/HackathonDetail: no nested `organizer` object, no `phase` or
+// `registered_count`.
+export interface HackathonWriteResult {
+  id: string;
+  title: string;
+  slug: string;
+  status: HackathonStatus;
+  summary: string;
+  description: string;
+  cover_image: string | null;
+  host_type: HackathonHostType;
+  partner_name: string;
+  partner_url: string;
+  requirements: string;
+  prize_summary: string;
+  registration_opens_at: string | null;
+  registration_deadline: string;
+  submission_deadline: string;
+  starts_at: string;
+  ends_at: string;
+  capacity: number | null;
+}
+
+export interface HackathonCreateInput {
+  title: string;
+  host_type?: HackathonHostType;
+  partner_name?: string;
+  partner_url?: string;
+  summary?: string;
+  description?: string;
+  requirements?: string;
+  prize_summary?: string;
+  registration_opens_at?: string | null;
+  registration_deadline: string;
+  submission_deadline: string;
+  starts_at: string;
+  ends_at: string;
+  capacity?: number | null;
+}
+
+export interface HackathonSubmission {
+  id: string;
+  title: string;
+  summary: string;
+  repo_url: string;
+  demo_url: string;
+  submitted_at: string;
+}
+
+export interface HackathonSubmissionInput {
+  title: string;
+  summary?: string;
+  repo_url?: string;
+  demo_url?: string;
+}
+
+export interface HackathonRegistration {
+  id: string;
+  hackathon: HackathonSummary;
+  team_name: string;
+  motivation: string;
+  status: HackathonRegistrationStatus;
+  registered_at: string;
+  submission: HackathonSubmission | null;
+}
+
+export interface HackathonRegistrationInput {
+  team_name?: string;
+  motivation?: string;
+}
+
+export interface HackathonOrganizerRegistration {
+  id: string;
+  participant: {
+    id: string;
+    email: string;
+    profile: Profile;
+  };
+  team_name: string;
+  motivation: string;
+  status: HackathonRegistrationStatus;
+  registered_at: string;
+  submission: HackathonSubmission | null;
+}
+
+export interface HackathonWinnerInput {
+  registration_id: string;
+  placement: number;
+  prize_description?: string;
+}
+
 export interface DiscussionPost {
   id: string;
   course: string;

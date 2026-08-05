@@ -532,6 +532,80 @@ while preserving financial records required for compliance retention.
 production (no manual edits diverging from code); load tests meet every P95 target; a rollback
 rehearsal completes without data loss.
 
+---
+
+### M13 — Hackathons — done
+**Sprint**: post-launch addition — not part of the original 8-sprint plan, so there's no FR-xxx
+ID for it in [the PRD](../00-product/01-prd.md). · **Apps**: `hackathons`
+
+**Scope**: SkillChain can post hackathons — hosted internally or in partnership with another
+organization — that users browse and register for. Each hackathon carries a description,
+requirements, a registration deadline, a submission deadline, an event window, an optional
+capacity, a prize summary, and (once judged) a winners list. Students see active/upcoming/
+completed hackathons and their own registrations; organizers see the hackathons they've posted.
+
+**Built and verified end-to-end** (create → publish → register → submit a project → declare a
+winner → publicly visible on the hackathon's page, exercised over real HTTP against a running
+Postgres instance, not mocked):
+- `Hackathon` (`host_type` internal/partner — partner hackathons carry a free-text
+  `partner_name`/`partner_url` rather than a first-class Organization record, since no
+  Organization model exists anywhere in this codebase; only `apps.authorization`'s otherwise-
+  unused `"organization"` role hints one was ever planned), `HackathonRegistration`,
+  `HackathonSubmission`, `HackathonWinner`.
+- **Active/upcoming/completed is computed, not stored**: `Hackathon.phase` derives from
+  `status` + `starts_at`/`ends_at` at read time (`GET /hackathons/?scope=`). This was a
+  deliberate choice over a stored value flipped by a scheduled task — no Celery beat schedule
+  exists for this app, and a derived property can't drift out of sync with the clock the way a
+  cached column could.
+- Registration enforces three things server-side, each with a passing negative test: the
+  registration window (`is_registration_open`, checked against `registration_opens_at`/
+  `registration_deadline`), capacity (`registrations.filter(status="registered").count() >=
+  capacity`), and re-registration idempotency (a second `POST` from an already-registered user
+  returns 200, not a duplicate row or a 400 — the same "success either way" shape used by
+  `WishlistItemAddRemoveView` and `LiveSessionRegisterView` in earlier milestones).
+- Submissions require an active registration and are blocked past `submission_deadline`,
+  server-side (403/400 respectively, both tested) — never left to the client to hide the form.
+- Winner declaration (`POST /organizer/hackathons/{id}/winners/`) requires the registration to
+  actually have a submission, and rejects a placement or a submission being awarded twice
+  (`UniqueConstraint` on both, tested for both).
+- Ownership is enforced identically to `catalog.Course`/`live_sessions.LiveSession`: an
+  organizer only ever manages their own hackathons (`organizer_id == request.user.id`, 403
+  otherwise); a moderation override (`POST /admin/hackathons/{id}/cancel/`) exists separately,
+  gated by a newly seeded `hackathons.manage` RBAC permission (granted to `moderator`,
+  `administrator`, `super_administrator` — same seed-migration pattern as `courses.approve`).
+- 43 tests in `tests/api/test_hackathons.py`, one negative-authz case per new endpoint per the
+  Definition of Done, 93–100% line coverage across `apps/hackathons/*`. Also manually verified
+  live: a real hackathon was created, published, registered for, submitted to, and judged
+  through the running API, then rendered correctly on both the public `/hackathons` list and
+  `/hackathons/{id}` detail pages (Next.js SSR output inspected directly), before being torn
+  down.
+- OpenAPI: new `Hackathons`/`HackathonOrganizer` tags and 13 operations added to
+  [`docs/03-api/02-openapi.yaml`](../03-api/02-openapi.yaml); `drf-spectacular`'s generated
+  schema has zero warnings/errors for the new views (two `status` enum collisions resolved via
+  `ENUM_NAME_OVERRIDES`, same fix as `Course.status`/`Enrollment.status` in M2); `spectral lint`
+  introduces zero new errors (one pre-existing, unrelated error at `/instructors/{id}` was left
+  as found, not fixed as a drive-by).
+
+**Deferred to a follow-up** (out of scope for this pass):
+- Notifications on registration/publish/winner-declaration — `apps.notifications` isn't wired
+  in; nothing currently tells a participant they won.
+- Hackathon cover image upload was implemented (`ImageField`, same pattern as `Course.cover_image`)
+  but not exercised with an actual multipart upload in this pass — only JSON create/update paths
+  were tested.
+- No organizer-defined custom registration-form fields — `team_name`/`motivation` are the only
+  collected fields; a generic form builder wasn't justified by any stated requirement.
+
+**Security checklist**: every organizer-only endpoint 403s a non-owner (tested per endpoint);
+draft hackathons 404 for everyone except their organizer, identical to a nonexistent hackathon
+(same information-hiding shape as `catalog.CourseDetailView`); the moderation override requires
+the `hackathons.manage` permission and 403s without it (tested); registration/submission
+deadlines and capacity are enforced server-side only.
+
+**Exit criteria**: met — "post → publish → register → submit → judge → publicly visible" is
+built, automated-tested (43/43 passing), and manually verified live end-to-end.
+
+---
+
 ## 3. Milestone Dependencies
 
 ```mermaid

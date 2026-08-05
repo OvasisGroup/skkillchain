@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.catalog",
     "apps.content",
     "apps.learning",
+    "apps.hackathons",
     "apps.live_sessions",
     "apps.assessments",
     "apps.billing",
@@ -297,6 +298,10 @@ SPECTACULAR_SETTINGS = {
         "PaymentProviderEnum": "apps.commerce.serializers.PAYMENT_PROVIDER_CHOICES",
         "ConferencingProviderEnum": "apps.live_sessions.models.ConferencingAccount.PROVIDER_CHOICES",
         "SupportTicketStatusEnum": "apps.support.models.SupportTicket.STATUS_CHOICES",
+        "HackathonStatusEnum": "apps.hackathons.models.Hackathon.STATUS_CHOICES",
+        "HackathonRegistrationStatusEnum": (
+            "apps.hackathons.models.HackathonRegistration.STATUS_CHOICES"
+        ),
     },
 }
 
