@@ -1,5 +1,6 @@
 import { ArrowRight, PlayCircle } from "lucide-react";
 import Link from "next/link";
+import { Reveal } from "@/components/animation/Reveal";
 
 export function AboutHero() {
   return (
@@ -11,7 +12,7 @@ export function AboutHero() {
         <div className="mx-auto h-[36rem] w-[72rem] bg-teal-400/20 [clip-path:polygon(74%_44%,100%_61%,97%_26%,85%_0%,80%_2%,72%_32%,60%_62%,32%_35%,2%_46%,0%_68%,32%_100%,60%_75%)]" />
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 pt-20 text-center sm:pt-28">
+      <Reveal className="mx-auto max-w-4xl px-6 pt-20 text-center sm:pt-28">
         <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">About us</p>
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
           The premier platform for{" "}
@@ -39,7 +40,7 @@ export function AboutHero() {
             Browse courses
           </Link>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import { ArrowRight, PlayCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { Reveal } from "@/components/animation/Reveal";
 
 export function Hero() {
   return (
@@ -13,8 +14,7 @@ export function Hero() {
       </div>
 
       <div className="mx-auto max-w-7xl px-6 pt-20 sm:pt-28 lg:grid lg:grid-cols-2 lg:items-center lg:gap-x-12 lg:pt-32">
-        <div className="mx-auto max-w-2xl lg:mx-0">
-
+        <Reveal className="mx-auto max-w-2xl lg:mx-0" start="top 100%">
 
           <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground sm:text-6xl">
             Your premier platform for{" "}
@@ -47,18 +47,22 @@ export function Hero() {
           <p className="mt-6 text-sm text-foreground/40">
             Free to register. No credit card required to explore the catalog.
           </p>
-        </div>
+        </Reveal>
 
-        <div className="mt-16 mr-0 flex justify-center pr-0 lg:mt-0 lg:h-full lg:items-end lg:justify-end lg:self-stretch">
+        <Reveal
+          className="mt-16 mr-0 flex justify-center pr-0 lg:mt-0 lg:h-full lg:items-end lg:justify-end lg:self-stretch"
+          start="top 100%"
+          delay={0.15}
+        >
           <Image
-            src="/homepage.png"
+            src="/girl_student.png"
             alt="SkillChain platform preview"
             width={785}
             height={1000}
             priority
             className="h-auto w-full max-w-lg object-contain"
           />
-        </div>
+        </Reveal>
       </div>
     </section>
   );

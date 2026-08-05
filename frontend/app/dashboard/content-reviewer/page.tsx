@@ -15,6 +15,7 @@ import { ApiError } from "@/lib/api/client";
 import { listEmailTemplates, listNotificationTemplates } from "@/lib/api/templates";
 import type { Course, EmailTemplate, NotificationTemplate } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 export default function ContentReviewerDashboardPage() {
   const { accessToken } = useAuth();
@@ -81,10 +82,10 @@ export default function ContentReviewerDashboardPage() {
     <div className="space-y-8">
       <PageHeader title="Content Reviewer" />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <Reveal className="grid grid-cols-2 gap-4 sm:grid-cols-4" stagger={0.08}>
         <StatCard label="Pending courses" value={String(pendingCourses.length)} icon={FileCheck} />
         <StatCard label="Templates" value={String(notificationTemplates.length + emailTemplates.length)} icon={Mail} />
-      </div>
+      </Reveal>
 
       <Panel title="Course approval queue">
         <DataTable

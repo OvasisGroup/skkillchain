@@ -1,5 +1,6 @@
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { Reveal } from "@/components/animation/Reveal";
 
 const STEPS = [
   "Apply online with a portfolio or GitHub profile",
@@ -18,7 +19,7 @@ export function InstructorProgram() {
     <section className="bg-surface py-24">
       <div className="mx-auto max-w-7xl px-6">
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
-          <div>
+          <Reveal>
             <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">
               Instructor program
             </p>
@@ -42,9 +43,9 @@ export function InstructorProgram() {
               Apply to teach
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
-          </div>
+          </Reveal>
 
-          <div className="rounded-2xl border border-border bg-background p-8">
+          <Reveal className="rounded-2xl border border-border bg-background p-8" delay={0.15}>
             <p className="text-sm font-semibold text-foreground">
               Our current roster includes mentors from
             </p>
@@ -58,7 +59,7 @@ export function InstructorProgram() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>

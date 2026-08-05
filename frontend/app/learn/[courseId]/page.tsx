@@ -20,6 +20,7 @@ import type {
   ProgressEntry,
 } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 // How often (ms) to persist video playback position while it's playing —
 // reporting on every `timeupdate` tick would be several requests a second.
@@ -180,7 +181,7 @@ export default function LearnCoursePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6">
+      <Reveal className="mb-6">
         <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">Learning</p>
         <h1 className="mt-1 text-2xl font-semibold text-foreground">{courseTitle}</h1>
         <div className="mt-3 flex items-center gap-3">
@@ -192,7 +193,7 @@ export default function LearnCoursePage() {
           </div>
           <span className="text-xs text-foreground/50">{progress?.overall_percent ?? 0}% complete</span>
         </div>
-      </div>
+      </Reveal>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
         <aside className="space-y-4 lg:order-1 order-2">

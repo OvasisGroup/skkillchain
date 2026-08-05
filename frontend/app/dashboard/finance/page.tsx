@@ -18,6 +18,7 @@ import {
 } from "@/lib/api/finance";
 import type { Coupon, Promotion, RevenueDailyAggregate } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 function CreateCouponForm({ onCreated }: { onCreated: (coupon: Coupon) => void }) {
   const { accessToken } = useAuth();
@@ -184,12 +185,12 @@ export default function FinanceDashboardPage() {
     <div className="space-y-8">
       <PageHeader title="Finance" />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <Reveal className="grid grid-cols-2 gap-4 sm:grid-cols-4" stagger={0.08}>
         <StatCard label="Gross revenue" value={totalGross.toFixed(2)} icon={DollarSign} />
         <StatCard label="Net revenue" value={totalNet.toFixed(2)} icon={DollarSign} />
         <StatCard label="Coupons" value={String(coupons.length)} icon={Percent} />
         <StatCard label="Promotions" value={String(promotions.length)} icon={Megaphone} />
-      </div>
+      </Reveal>
 
       <Panel title="Revenue">
         <DataTable

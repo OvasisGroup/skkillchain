@@ -4,6 +4,7 @@ import { CourseCard } from "@/components/CourseCard";
 import { CourseFilters } from "@/components/CourseFilters";
 import { listCategories, listCourses } from "@/lib/api/courses";
 import type { Category, Course } from "@/lib/api/types";
+import { Reveal } from "@/components/animation/Reveal";
 
 export const metadata = {
   title: "Browse courses",
@@ -43,7 +44,7 @@ export default async function CoursesPage({
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-16">
-      <div className="max-w-2xl">
+      <Reveal className="max-w-2xl">
         <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">Catalog</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           Browse courses
@@ -51,7 +52,7 @@ export default async function CoursesPage({
         <p className="mt-3 text-lg text-foreground/60">
           Live, published courses served straight from the SkillChain API.
         </p>
-      </div>
+      </Reveal>
 
       <Suspense>
         <CourseFilters categories={categories} />

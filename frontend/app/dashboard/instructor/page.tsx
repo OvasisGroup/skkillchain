@@ -17,6 +17,7 @@ import { getInstructorEarnings, getInstructorWallet, listInstructorPayouts, requ
 import type { Assignment, AssignmentSubmission, Course, EarningsAggregate, Payout, Wallet } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { hasRole } from "@/lib/auth/roles";
+import { Reveal } from "@/components/animation/Reveal";
 
 interface PendingSubmission {
   assignment: Assignment;
@@ -202,7 +203,7 @@ export default function InstructorDashboardPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <Reveal className="grid grid-cols-2 gap-4 sm:grid-cols-4" stagger={0.08}>
         <StatCard label="Courses" value={String(courses.length)} icon={BookOpen} />
         <StatCard label="Published" value={String(publishedCount)} icon={BadgeCheck} />
         <StatCard
@@ -211,7 +212,7 @@ export default function InstructorDashboardPage() {
           icon={WalletIcon}
         />
         <StatCard label="Needs grading" value={String(pending.length)} icon={ClipboardCheck} />
-      </div>
+      </Reveal>
 
       <Panel
         title="My courses"

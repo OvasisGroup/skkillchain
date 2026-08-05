@@ -1,4 +1,5 @@
 import { Award, Briefcase, Code2 } from "lucide-react";
+import { Reveal } from "@/components/animation/Reveal";
 
 const OUTCOMES = [
   {
@@ -24,16 +25,19 @@ const OUTCOMES = [
 export function Outcomes() {
   return (
     <section className="mx-auto max-w-7xl px-6 py-24">
-      <div className="mx-auto max-w-2xl text-center">
+      <Reveal className="mx-auto max-w-2xl text-center">
         <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">
           From learner to builder
         </p>
         <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           What you walk away with
         </h2>
-      </div>
+      </Reveal>
 
-      <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-8 lg:max-w-none lg:grid-cols-3">
+      <Reveal
+        className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-8 lg:max-w-none lg:grid-cols-3"
+        stagger={0.1}
+      >
         {OUTCOMES.map(({ icon: Icon, title, description }) => (
           <div key={title} className="rounded-2xl border border-border bg-surface p-8">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400">
@@ -43,7 +47,7 @@ export function Outcomes() {
             <p className="mt-3 text-sm leading-6 text-foreground/60">{description}</p>
           </div>
         ))}
-      </div>
+      </Reveal>
     </section>
   );
 }

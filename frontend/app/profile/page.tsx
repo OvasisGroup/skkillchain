@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/client";
 import { updateMe } from "@/lib/api/auth";
 import type { Me } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 export default function ProfilePage() {
   const { user, accessToken, setUser } = useAuth();
@@ -82,7 +83,7 @@ function ProfileForm({
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-16">
+    <Reveal className="mx-auto max-w-3xl px-6 py-16">
       <div>
         <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">Account</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
@@ -241,6 +242,6 @@ function ProfileForm({
           {saving ? "Saving…" : "Save changes"}
         </button>
       </form>
-    </div>
+    </Reveal>
   );
 }

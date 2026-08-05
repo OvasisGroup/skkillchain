@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LoadingState } from "@/components/dashboard/DashboardStates";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useWishlist } from "@/lib/wishlist/WishlistContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 export default function WishlistPage() {
   const { accessToken } = useAuth();
@@ -12,13 +13,13 @@ export default function WishlistPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-16">
-      <div className="max-w-2xl">
+      <Reveal className="max-w-2xl">
         <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">My learning</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           Wishlist
         </h1>
         <p className="mt-3 text-lg text-foreground/60">Courses you&apos;ve saved for later.</p>
-      </div>
+      </Reveal>
 
       {!accessToken && <LoadingState label="Loading your wishlist…" />}
 
@@ -33,7 +34,7 @@ export default function WishlistPage() {
       )}
 
       {accessToken && items.length > 0 && (
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Reveal className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" stagger={0.08}>
           {items.map((item) => (
             <div
               key={item.course.id}
@@ -62,7 +63,7 @@ export default function WishlistPage() {
               </div>
             </div>
           ))}
-        </div>
+        </Reveal>
       )}
     </div>
   );

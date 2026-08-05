@@ -11,6 +11,7 @@ import { approveInstructorApplication, listInstructorApplications } from "@/lib/
 import type { InstructorApplication } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { UserCheck } from "lucide-react";
+import { Reveal } from "@/components/animation/Reveal";
 
 export default function ModeratorDashboardPage() {
   const { accessToken } = useAuth();
@@ -57,10 +58,10 @@ export default function ModeratorDashboardPage() {
     <div className="space-y-8">
       <PageHeader title="Moderator" />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <Reveal className="grid grid-cols-2 gap-4 sm:grid-cols-4" stagger={0.08}>
         <StatCard label="Pending applications" value={String(pendingCount)} icon={UserCheck} />
         <StatCard label="Total applications" value={String(applications.length)} icon={UserCheck} />
-      </div>
+      </Reveal>
 
       <Panel title="Instructor applications">
         <DataTable

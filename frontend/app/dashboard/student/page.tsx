@@ -20,6 +20,7 @@ import {
 import { listMyLiveSessions } from "@/lib/api/liveSessions";
 import type { Certificate, Enrollment, GradeEntry, LiveSession, WishlistItem } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 interface StudentData {
   continueLearning: Enrollment[];
@@ -77,7 +78,7 @@ export default function StudentDashboardPage() {
     <div className="space-y-8">
       <PageHeader title="My learning" />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <Reveal className="grid grid-cols-2 gap-4 sm:grid-cols-4" stagger={0.08}>
         <StatCard label="Enrolled" value={String(data.myCourses.length)} icon={BookOpen} />
         <StatCard label="Completed" value={String(completedCount)} icon={Award} />
         <StatCard label="Wishlist" value={String(data.wishlist.length)} icon={Heart} />
@@ -89,7 +90,7 @@ export default function StudentDashboardPage() {
           )}
           icon={Radio}
         />
-      </div>
+      </Reveal>
 
       <Panel title="Continue learning">
         {data.continueLearning.length === 0 ? (

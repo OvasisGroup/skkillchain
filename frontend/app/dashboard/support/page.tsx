@@ -12,6 +12,7 @@ import { ApiError } from "@/lib/api/client";
 import { listAdminTickets, updateAdminTicket } from "@/lib/api/support";
 import type { SupportTicket } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 const STATUS_OPTIONS: SupportTicket["status"][] = ["open", "in_progress", "resolved", "closed"];
 const STATUS_STYLES: Record<SupportTicket["status"], string> = {
@@ -71,11 +72,11 @@ export default function SupportDashboardPage() {
     <div className="space-y-8">
       <PageHeader title="Support" />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <Reveal className="grid grid-cols-2 gap-4 sm:grid-cols-4" stagger={0.08}>
         <StatCard label="Total tickets" value={String(tickets.length)} icon={LifeBuoy} />
         <StatCard label="Open" value={String(openCount)} icon={LifeBuoy} />
         <StatCard label="SLA breached" value={String(breachedCount)} icon={AlertOctagon} />
-      </div>
+      </Reveal>
 
       <Panel
         title="Tickets"

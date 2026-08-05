@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { CourseCard } from "@/components/CourseCard";
 import { listCourses } from "@/lib/api/courses";
+import { Reveal } from "@/components/animation/Reveal";
 
 const FEATURED_COUNT = 3;
 
@@ -17,23 +18,26 @@ export async function Courses() {
   return (
     <section id="courses" className="bg-surface py-24">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-4xl text-center">
           <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">
             Catalog
           </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <h2 className="mt-3 whitespace-nowrap text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             Courses to get you building
           </h2>
-          <p className="mt-4 text-lg text-foreground/60">
+          <p className="mt-4 whitespace-nowrap text-lg text-foreground/60">
             A sample of what's live right now — browse the full catalog for everything else.
           </p>
-        </div>
+        </Reveal>
 
-        <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-6 sm:grid-cols-2 lg:max-w-none lg:grid-cols-3">
+        <Reveal
+          className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-6 sm:grid-cols-2 lg:max-w-none lg:grid-cols-3"
+          stagger={0.1}
+        >
           {courses.slice(0, FEATURED_COUNT).map((course) => (
             <CourseCard key={course.id} course={course} />
           ))}
-        </div>
+        </Reveal>
 
         <div className="mt-10 text-center">
           <Link

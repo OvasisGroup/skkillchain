@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/client";
 import { listNotifications, markNotificationsRead } from "@/lib/api/notifications";
 import type { Notification } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 export default function NotificationsPage() {
   const { accessToken } = useAuth();
@@ -60,7 +61,7 @@ export default function NotificationsPage() {
   const unreadCount = items?.filter((n) => !n.read_at).length ?? 0;
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-16">
+    <Reveal className="mx-auto max-w-4xl px-6 py-16">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">Inbox</p>
@@ -121,6 +122,6 @@ export default function NotificationsPage() {
           ))}
         </div>
       )}
-    </div>
+    </Reveal>
   );
 }

@@ -7,6 +7,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
+import { Reveal } from "@/components/animation/Reveal";
 
 const DIFFERENTIATORS = [
   {
@@ -50,16 +51,19 @@ export function Differentiators() {
   return (
     <section className="bg-surface py-24">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">
             Why SkillChain
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             What makes SkillChain different
           </h2>
-        </div>
+        </Reveal>
 
-        <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-8 sm:grid-cols-2 lg:max-w-none lg:grid-cols-3">
+        <Reveal
+          className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-8 sm:grid-cols-2 lg:max-w-none lg:grid-cols-3"
+          stagger={0.1}
+        >
           {DIFFERENTIATORS.map(({ icon: Icon, title, description }) => (
             <div
               key={title}
@@ -72,7 +76,7 @@ export function Differentiators() {
               <p className="mt-2 text-sm leading-6 text-foreground/60">{description}</p>
             </div>
           ))}
-        </div>
+        </Reveal>
       </div>
     </section>
   );

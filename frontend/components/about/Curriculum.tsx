@@ -1,4 +1,5 @@
 import { BookOpen, Rocket } from "lucide-react";
+import { Reveal } from "@/components/animation/Reveal";
 
 const CORE_CURRICULUM = [
   "Blockchain fundamentals",
@@ -17,16 +18,16 @@ const UPCOMING_TRACKS = [
 export function Curriculum() {
   return (
     <section className="mx-auto max-w-7xl px-6 py-24">
-      <div className="mx-auto max-w-2xl text-center">
+      <Reveal className="mx-auto max-w-2xl text-center">
         <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">
           Our courses
         </p>
         <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           Curriculum built for real skills
         </h2>
-      </div>
+      </Reveal>
 
-      <div className="mx-auto mt-16 grid max-w-3xl grid-cols-1 gap-8 sm:grid-cols-2">
+      <Reveal className="mx-auto mt-16 grid max-w-3xl grid-cols-1 gap-8 sm:grid-cols-2" stagger={0.1}>
         <div className="rounded-2xl border border-border bg-surface p-8">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400">
             <BookOpen className="h-5 w-5" strokeWidth={2} />
@@ -56,7 +57,7 @@ export function Curriculum() {
             ))}
           </ul>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }

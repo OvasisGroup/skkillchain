@@ -14,6 +14,7 @@ import { UserMenu } from "./UserMenu";
 const NAV_LINKS = [
   { href: "/courses", label: "Courses" },
   { href: "/live-sessions", label: "Live Sessions" },
+  { href: "/hackathons", label: "Hackathons" },
   { href: "/#for-instructors", label: "For Instructors" },
 ];
 

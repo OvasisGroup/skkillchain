@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/client";
 import { enrollMfa, verifyMfa } from "@/lib/api/auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 export default function SettingsPage() {
   const { user, accessToken } = useAuth();
@@ -58,7 +59,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-16">
+    <Reveal className="mx-auto max-w-3xl px-6 py-16">
       <div>
         <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">Account</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
@@ -132,6 +133,6 @@ export default function SettingsPage() {
 
         {error && <p className="mt-4 text-sm text-rose-400">{error}</p>}
       </section>
-    </div>
+    </Reveal>
   );
 }

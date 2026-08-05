@@ -2,6 +2,7 @@ import { AlertTriangle, Users } from "lucide-react";
 import { InstructorCard } from "@/components/InstructorCard";
 import { listInstructors } from "@/lib/api/instructors";
 import type { InstructorSummary } from "@/lib/api/types";
+import { Reveal } from "@/components/animation/Reveal";
 
 export const metadata = {
   title: "Instructors",
@@ -23,7 +24,7 @@ export default async function InstructorsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-16">
-      <div className="max-w-2xl">
+      <Reveal className="max-w-2xl">
         <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">
           Instructors
         </p>
@@ -33,7 +34,7 @@ export default async function InstructorsPage() {
         <p className="mt-3 text-lg text-foreground/60">
           Working practitioners teaching the skills they use every day.
         </p>
-      </div>
+      </Reveal>
 
       {loadError && (
         <div className="mt-10 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-400">
@@ -52,11 +53,14 @@ export default async function InstructorsPage() {
       )}
 
       {instructors.length > 0 && (
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <Reveal
+          className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+          stagger={0.08}
+        >
           {instructors.map((instructor) => (
             <InstructorCard key={instructor.id} instructor={instructor} />
           ))}
-        </div>
+        </Reveal>
       )}
     </div>
   );

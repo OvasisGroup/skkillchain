@@ -1,4 +1,5 @@
 import { CheckCircle2, Handshake } from "lucide-react";
+import { Reveal } from "@/components/animation/Reveal";
 
 const PARTNERS = [
   "Nairobi County",
@@ -13,7 +14,7 @@ export function Partners() {
   return (
     <section className="bg-surface py-24">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">
             Our partners
           </p>
@@ -24,9 +25,12 @@ export function Partners() {
             Our hackathons and bootcamps are hosted together with organizations already investing
             in Kenya&apos;s digital economy.
           </p>
-        </div>
+        </Reveal>
 
-        <div className="mx-auto mt-12 flex max-w-4xl flex-wrap items-center justify-center gap-3">
+        <Reveal
+          className="mx-auto mt-12 flex max-w-4xl flex-wrap items-center justify-center gap-3"
+          stagger={0.08}
+        >
           {PARTNERS.map((partner) => (
             <span
               key={partner}
@@ -36,7 +40,7 @@ export function Partners() {
               {partner}
             </span>
           ))}
-        </div>
+        </Reveal>
 
         <div className="mx-auto mt-10 flex max-w-xl flex-wrap items-center justify-center gap-x-8 gap-y-3">
           {ACHIEVEMENTS.map((achievement) => (

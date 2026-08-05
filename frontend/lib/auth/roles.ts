@@ -9,6 +9,7 @@ import {
   type LucideIcon,
   ShieldAlert,
   ShieldCheck,
+  Trophy,
 } from "lucide-react";
 import type { Me, RoleCode } from "@/lib/api/types";
 
@@ -43,6 +44,7 @@ export interface DashboardNavItem {
 export const DASHBOARD_NAV: DashboardNavItem[] = [
   { path: "/dashboard/student", label: "Student", icon: GraduationCap, visible: () => true },
   { path: "/dashboard/instructor", label: "Instructor", icon: BookOpen, visible: () => true },
+  { path: "/dashboard/hackathons", label: "Hackathons", icon: Trophy, visible: () => true },
   {
     path: "/dashboard/moderator",
     label: "Moderator",

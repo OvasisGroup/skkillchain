@@ -1,5 +1,6 @@
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { Reveal } from "@/components/animation/Reveal";
 
 const POINTS = [
   "Author courses with sections, lessons, quizzes, assignments, and coding exercises",
@@ -12,7 +13,7 @@ export function ForInstructors() {
   return (
     <section id="for-instructors" className="mx-auto max-w-7xl px-6 py-24">
       <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
-        <div>
+        <Reveal>
           <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">
             For instructors
           </p>
@@ -40,9 +41,12 @@ export function ForInstructors() {
             Apply to teach
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
-        </div>
+        </Reveal>
 
-        <div className="rounded-2xl border border-border bg-foreground/[0.03] p-8">
+        <Reveal
+          className="rounded-2xl border border-border bg-foreground/[0.03] p-8"
+          delay={0.15}
+        >
           <div className="space-y-4">
             <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-5">
               <span className="text-sm font-medium text-foreground/50">
@@ -65,7 +69,7 @@ export function ForInstructors() {
               <span className="text-2xl font-semibold text-foreground">4.8 ★</span>
             </div>
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

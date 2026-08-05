@@ -18,6 +18,7 @@ import {
 import { ApiError } from "@/lib/api/client";
 import type { AffiliateAccount, AffiliateCommission, AffiliateReferral, Wallet } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 export default function AffiliateDashboardPage() {
   const { accessToken } = useAuth();
@@ -128,7 +129,7 @@ export default function AffiliateDashboardPage() {
     <div className="space-y-8">
       <PageHeader title="Affiliate" />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <Reveal className="grid grid-cols-2 gap-4 sm:grid-cols-4" stagger={0.08}>
         <StatCard label="Referral code" value={account.referral_code} icon={Link2} />
         <StatCard label="Commission rate" value={`${account.commission_rate}%`} icon={DollarSign} />
         <StatCard label="Referrals" value={String(referrals.length)} icon={Users} />
@@ -137,7 +138,7 @@ export default function AffiliateDashboardPage() {
           value={wallet ? `${wallet.currency} ${wallet.balance_amount}` : "—"}
           icon={DollarSign}
         />
-      </div>
+      </Reveal>
 
       <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-surface p-5">
         <p className="text-sm text-foreground/70">

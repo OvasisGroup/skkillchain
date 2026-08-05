@@ -13,6 +13,7 @@ import { ApiError } from "@/lib/api/client";
 import { listSettings, upsertSetting } from "@/lib/api/settings";
 import type { AdminUser, AuditLog, Setting } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { Reveal } from "@/components/animation/Reveal";
 
 function SettingUpsertForm({ onSaved }: { onSaved: (setting: Setting) => void }) {
   const { accessToken } = useAuth();
@@ -136,12 +137,12 @@ export default function AdminDashboardPage() {
     <div className="space-y-8">
       <PageHeader title="Administrator" />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <Reveal className="grid grid-cols-2 gap-4 sm:grid-cols-4" stagger={0.08}>
         <StatCard label="Users" value={String(users.length)} icon={Users} />
         <StatCard label="Active" value={String(activeCount)} icon={Users} />
         <StatCard label="Audit events" value={String(auditLogs.length)} icon={FileText} />
         <StatCard label="Settings" value={String(settings.length)} icon={SettingsIcon} />
-      </div>
+      </Reveal>
 
       <Panel title="Users">
         <form onSubmit={handleSearch} className="mb-3 flex gap-2">

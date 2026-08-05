@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api/client";
 import { getInstructor } from "@/lib/api/instructors";
 import type { InstructorDetail } from "@/lib/api/types";
 import { absoluteUrl } from "@/lib/seo";
+import { Reveal } from "@/components/animation/Reveal";
 
 const SOCIAL_LINKS: { field: keyof InstructorDetail["profile"]; label: string }[] = [
   { field: "linkedin_url", label: "LinkedIn" },
@@ -84,7 +85,7 @@ export default async function InstructorDetailPage({
         <span className="text-foreground">{name}</span>
       </nav>
 
-      <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      <Reveal className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
         <div className="flex flex-col items-center gap-8 p-8 text-center sm:flex-row sm:items-start sm:text-left">
           <div className="flex h-32 w-32 flex-none items-center justify-center overflow-hidden rounded-full bg-teal-400 text-4xl font-semibold text-emerald-950 ring-4 ring-teal-400/10">
             {instructor.profile.avatar ? (
@@ -159,7 +160,7 @@ export default async function InstructorDetailPage({
             )}
           </div>
         </div>
-      </div>
+      </Reveal>
 
       <div className="mt-14">
         <div className="flex items-center justify-between">
@@ -171,11 +172,11 @@ export default async function InstructorDetailPage({
         </div>
 
         {instructor.courses.length > 0 ? (
-          <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <Reveal className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" stagger={0.08}>
             {instructor.courses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
-          </div>
+          </Reveal>
         ) : (
           <div className="mt-4 flex flex-col items-center rounded-2xl border border-dashed border-border-strong py-16 text-center">
             <BookOpen className="h-10 w-10 text-foreground/30" />

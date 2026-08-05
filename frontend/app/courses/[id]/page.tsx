@@ -10,6 +10,7 @@ import { listCourseDiscussions } from "@/lib/api/discussions";
 import { listCourseLiveSessions } from "@/lib/api/liveSessions";
 import type { CourseDetail, DiscussionPost, LiveSession, PreviewSection } from "@/lib/api/types";
 import { SITE_NAME, absoluteUrl } from "@/lib/seo";
+import { Reveal } from "@/components/animation/Reveal";
 
 const DIFFICULTY_STYLES: Record<CourseDetail["difficulty"], string> = {
   beginner: "bg-emerald-500/10 text-emerald-400",
@@ -135,49 +136,51 @@ export default async function CourseDetailPage({
 
       <div className="mt-8 grid grid-cols-1 gap-12 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${DIFFICULTY_STYLES[course.difficulty]}`}
-            >
-              {course.difficulty}
-            </span>
-            {course.category && (
-              <span className="rounded-full bg-surface-hover px-2.5 py-0.5 text-xs font-medium text-foreground/70">
-                {course.category.name}
+          <Reveal>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${DIFFICULTY_STYLES[course.difficulty]}`}
+              >
+                {course.difficulty}
               </span>
-            )}
-          </div>
+              {course.category && (
+                <span className="rounded-full bg-surface-hover px-2.5 py-0.5 text-xs font-medium text-foreground/70">
+                  {course.category.name}
+                </span>
+              )}
+            </div>
 
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            {course.title}
-          </h1>
-          <p className="mt-4 text-lg leading-8 text-foreground/60">
-            {course.summary}
-          </p>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+              {course.title}
+            </h1>
+            <p className="mt-4 text-lg leading-8 text-foreground/60">
+              {course.summary}
+            </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-foreground/50">
-            <span>
-              Taught by <span className="font-medium text-foreground">{course.instructor.email}</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Globe2 className="h-4 w-4" />
-              {course.language.toUpperCase()}
-            </span>
-          </div>
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-foreground/50">
+              <span>
+                Taught by <span className="font-medium text-foreground">{course.instructor.email}</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Globe2 className="h-4 w-4" />
+                {course.language.toUpperCase()}
+              </span>
+            </div>
+          </Reveal>
 
           {course.description && (
-            <div className="mt-10">
+            <Reveal className="mt-10">
               <h2 className="text-lg font-semibold text-foreground">
                 About this course
               </h2>
               <p className="mt-3 whitespace-pre-line text-sm leading-7 text-foreground/60">
                 {course.description}
               </p>
-            </div>
+            </Reveal>
           )}
 
           {course.learning_objectives.length > 0 && (
-            <div className="mt-10">
+            <Reveal className="mt-10">
               <h2 className="text-lg font-semibold text-foreground">
                 What you&apos;ll learn
               </h2>
@@ -192,11 +195,11 @@ export default async function CourseDetailPage({
                   </li>
                 ))}
               </ul>
-            </div>
+            </Reveal>
           )}
 
           {course.prerequisites.length > 0 && (
-            <div className="mt-10">
+            <Reveal className="mt-10">
               <h2 className="text-lg font-semibold text-foreground">
                 Prerequisites
               </h2>
@@ -211,11 +214,11 @@ export default async function CourseDetailPage({
                   </li>
                 ))}
               </ul>
-            </div>
+            </Reveal>
           )}
 
           {preview.length > 0 && (
-            <div className="mt-10">
+            <Reveal className="mt-10">
               <h2 className="text-lg font-semibold text-foreground">
                 Free preview
               </h2>
@@ -248,7 +251,7 @@ export default async function CourseDetailPage({
                   </div>
                 ))}
               </div>
-            </div>
+            </Reveal>
           )}
 
           <CourseLiveSessions courseId={course.id} sessions={liveSessions} />

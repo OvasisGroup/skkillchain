@@ -3,6 +3,7 @@ import { LiveSessionsBrowser, type CourseLiveSessionEntry } from "@/components/L
 import { LiveSessionsIntro } from "@/components/LiveSessionsIntro";
 import { listCourses } from "@/lib/api/courses";
 import { listCourseLiveSessions } from "@/lib/api/liveSessions";
+import { Reveal } from "@/components/animation/Reveal";
 
 export const metadata = {
   title: "Live sessions",
@@ -34,7 +35,7 @@ export default async function LiveSessionsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-16">
-      <div className="max-w-2xl">
+      <Reveal className="max-w-2xl">
         <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-lime-400">
           Live sessions
           <Radio className="h-4 w-4" />
@@ -46,7 +47,7 @@ export default async function LiveSessionsPage() {
           Register for instructor-led sessions running over Zoom or Google Meet, or catch up on
           the recording afterward.
         </p>
-      </div>
+      </Reveal>
 
       <div className="mt-12">
         <LiveSessionsIntro />
