@@ -4,7 +4,12 @@
 
 export const SITE_NAME = "SkillChain";
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(
+// `||`, not `??` — an unset Docker build-arg surfaces here as an empty
+// string, not undefined (ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+// still *sets* the var, just to ""), and `??` only falls back on
+// null/undefined. `new URL(SITE_URL)` below and in app/layout.tsx would
+// otherwise throw ERR_INVALID_URL on an empty string and fail the build.
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(
   /\/+$/,
   ""
 );

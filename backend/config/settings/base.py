@@ -207,6 +207,13 @@ X_FRAME_OPTIONS = "DENY"
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 SECURE_REFERRER_POLICY = "same-origin"
+# Empty by default (dev has no cross-origin session-cookie surface to
+# protect). stage/prod set this to the real scheme+host(s) that serve
+# session-cookie-authenticated views (chiefly /admin/) once they're behind
+# a reverse proxy on a real domain — see docs/06-devops-security-qa/
+# 03-vps-deployment.md. The JWT-authenticated API itself doesn't need
+# this; only session/cookie-based POSTs do.
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

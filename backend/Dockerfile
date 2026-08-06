@@ -13,9 +13,15 @@ RUN pip install --no-cache-dir --prefix=/install .
 
 FROM python:3.12-slim AS runtime
 
+# UID/GID pinned, not left to whatever's next-free at build time — prod
+# bind-mounts host directories (media/static) into this container, and the
+# VPS provisioning script chowns those directories to this exact UID up
+# front. An unpinned UID would work by accident in dev and silently break
+# file ownership in prod.
 RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl \
     && rm -rf /var/lib/apt/lists/* \
-    && groupadd --system app && useradd --system --gid app --home /app app
+    && groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --home /app app
 
 COPY --from=builder /install /usr/local
 

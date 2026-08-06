@@ -49,6 +49,7 @@ This repository contains a complete enterprise-grade architecture and delivery b
 
 41. Live Sessions (Zoom / Google Meet): integrated across all sections above — see [docs/07-delivery-planning/01-jira-epics-stories-sprints-roadmap.md](docs/07-delivery-planning/01-jira-epics-stories-sprints-roadmap.md) EPIC-13 for the summary.
 42. Backend Build Milestones (production-grade, secure, fully documented API): [docs/07-delivery-planning/02-backend-build-milestones.md](docs/07-delivery-planning/02-backend-build-milestones.md)
+43. VPS Deployment (the actual, current deploy path — GitHub Actions + Docker Compose + nginx, as opposed to #26-28/40's aspirational Kubernetes/AWS target): [docs/06-devops-security-qa/03-vps-deployment.md](docs/06-devops-security-qa/03-vps-deployment.md)
 
 ## Recommended Execution Order
 1. Architecture and database review

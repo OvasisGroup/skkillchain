@@ -1,7 +1,11 @@
 import type { ProblemDetail } from "./types";
 
+// `||`, not `??` — a Docker build-arg that's declared but not passed a
+// value surfaces here as an empty string, not undefined, and `??` only
+// falls back on null/undefined. An empty string here means every request
+// silently goes to a relative path instead of the real API host.
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
 // DRF's error shapes aren't as uniform as ProblemDetail's type claims — a
 // manually raised `ValidationError({"field": "some message"})` (as opposed

@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  // Emits a self-contained .next/standalone server (just the files actually
+  // needed at runtime, node_modules pruned to production deps) — frontend/
+  // Dockerfile's runtime stage copies only that output rather than the full
+  // node_modules tree, which is most of why the production image is small.
+  output: "standalone",
 };
 
 export default nextConfig;
