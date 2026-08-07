@@ -5,20 +5,16 @@ import type { ProblemDetail } from "./types";
 // falls back on null/undefined. An empty string here means every request
 // silently goes to a relative path instead of the real API host.
 //
-// Server-side (this module evaluated inside the Node process — Server
-// Components, route handlers) prefers API_BASE_URL_INTERNAL: a plain
-// runtime env var (not NEXT_PUBLIC_, so it's read live from process.env,
-// never inlined into the client bundle) that lets the frontend container
-// reach the api container directly over the Compose network. Browsers have
-// no such shortcut, so client code always uses the public NEXT_PUBLIC_ URL.
-// `typeof window` is evaluated once per bundle (server vs. client are
-// built separately), so this never re-checks per request.
+// Deliberately the same URL for server-side (Server Components) and
+// client-side fetches, even though the frontend and api containers share a
+// Compose network and could talk directly — prod forces
+// SECURE_SSL_REDIRECT (backend/config/settings/prod.py), so a plain-HTTP
+// request over that internal network just 301s to HTTPS, which nothing
+// internal terminates. Tried that shortcut once; it silently broke SSR
+// data fetching. Not worth the complexity for a request that's fast enough
+// over the public HTTPS URL anyway.
 export const API_BASE_URL =
-  typeof window === "undefined"
-    ? process.env.API_BASE_URL_INTERNAL ||
-      process.env.NEXT_PUBLIC_API_BASE_URL ||
-      "http://localhost:8000/api/v1"
-    : process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
 // DRF's error shapes aren't as uniform as ProblemDetail's type claims — a
 // manually raised `ValidationError({"field": "some message"})` (as opposed
