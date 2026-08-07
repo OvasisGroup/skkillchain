@@ -134,9 +134,18 @@ services:
     image: ghcr.io/ovasisgroup/skillchain-frontend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     # NEXT_PUBLIC_* vars are already baked into this image at build time
-    # (see frontend/Dockerfile) — no env_file needed here.
+    # (see frontend/Dockerfile) and don't come from here. This env_file is
+    # only for API_BASE_URL_INTERNAL — a plain runtime var (not NEXT_PUBLIC_,
+    # so never inlined into the client bundle) that lets the Next.js
+    # server's own fetches (Server Components, SSR) reach the api container
+    # directly over this network instead of round-tripping through the
+    # public domain and host nginx.
+    env_file:
+      - .env.prod
     ports:
       - "127.0.0.1:3000:3000"
+    depends_on:
+      - api
 
 volumes:
   postgres_data:
