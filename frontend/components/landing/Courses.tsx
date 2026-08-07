@@ -22,10 +22,10 @@ export async function Courses() {
           <p className="text-sm font-semibold uppercase tracking-wider text-lime-400">
             Catalog
           </p>
-          <h2 className="mt-3 whitespace-nowrap text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             Courses to get you building
           </h2>
-          <p className="mt-4 whitespace-nowrap text-lg text-foreground/60">
+          <p className="mt-4 text-lg text-foreground/60">
             A sample of what's live right now — browse the full catalog for everything else.
           </p>
         </Reveal>

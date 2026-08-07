@@ -25,13 +25,13 @@ export function RejectCourseButton({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <input
         type="text"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         placeholder="Reason for rejection"
-        className="w-48 rounded-lg border border-border-strong bg-surface px-2 py-1 text-xs text-foreground focus:border-teal-400 focus:outline-none"
+        className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1 text-xs text-foreground focus:border-teal-400 focus:outline-none sm:w-48"
       />
       <button
         type="button"

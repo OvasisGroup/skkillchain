@@ -145,13 +145,13 @@ export default function AdminDashboardPage() {
       </Reveal>
 
       <Panel title="Users">
-        <form onSubmit={handleSearch} className="mb-3 flex gap-2">
+        <form onSubmit={handleSearch} className="mb-3 flex flex-wrap gap-2">
           <input
             type="text"
             value={emailSearch}
             onChange={(e) => setEmailSearch(e.target.value)}
             placeholder="Search by email…"
-            className="w-64 rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-sm text-foreground focus:border-teal-400 focus:outline-none"
+            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-sm text-foreground focus:border-teal-400 focus:outline-none sm:w-64"
           />
           <button
             type="submit"

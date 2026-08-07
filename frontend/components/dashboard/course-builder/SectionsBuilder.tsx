@@ -113,7 +113,7 @@ function LessonForm({
         placeholder="Lesson title"
         className={authInputClass}
       />
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <select
           value={lessonType}
           onChange={(e) => setLessonType(e.target.value as Lesson["lesson_type"])}
