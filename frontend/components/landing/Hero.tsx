@@ -55,7 +55,7 @@ export function Hero() {
           delay={0.15}
         >
           <Image
-            src="/girl_student.png"
+            src="/3x/girl_student@3x.png"
             alt="SkillChain platform preview"
             width={785}
             height={1000}
