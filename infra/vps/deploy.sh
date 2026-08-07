@@ -45,7 +45,13 @@ fi
 cd "$APP_DIR"
 
 compose() {
-    docker compose --env-file "$ENV_PROD" --env-file "$ENV_DEPLOY" -f "$COMPOSE_FILE" "$@"
+    # --project-directory pins where Compose resolves each service's
+    # relative `env_file: .env.prod` — without it, Compose resolves that
+    # relative to COMPOSE_FILE's own directory (infra/docker/), not APP_DIR,
+    # and every `env_file` load silently fails to find .env.prod even
+    # though --env-file above (a *different* thing — YAML ${...}
+    # interpolation only) found it just fine.
+    docker compose --env-file "$ENV_PROD" --env-file "$ENV_DEPLOY" -f "$COMPOSE_FILE" --project-directory "$APP_DIR" "$@"
 }
 
 write_tag() {
