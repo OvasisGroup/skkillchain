@@ -71,7 +71,13 @@ ENV NODE_ENV=production \
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+# timeout=20s, not the default 5s: on the actual VPS this runs on, the
+# homepage's SSR render has been observed taking 7-13s under real load —
+# discovered because a 5s timeout was marking a perfectly healthy,
+# actually-responding container "unhealthy," which made deploy.sh's
+# post-deploy check fail (and even its own rollback fail the same way,
+# since the rollback target has the same tight timeout baked in).
+HEALTHCHECK --interval=30s --timeout=20s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:3000/ || exit 1
 
 CMD ["node", "server.js"]
