@@ -11,9 +11,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const items = DASHBOARD_NAV.filter((item) => item.visible(user));
 
   return (
-    <div className="mx-auto flex max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:gap-10 lg:py-10">
-      <aside className="lg:w-14 lg:flex-none">
-        <nav className="flex gap-1 overflow-x-auto pb-1 lg:sticky lg:top-24 lg:flex-col lg:gap-1.5 lg:overflow-visible lg:pb-0">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:flex-row lg:gap-8 lg:py-10">
+      <aside className="lg:w-60 lg:flex-none">
+        <nav className="flex gap-1 overflow-x-auto pb-1 lg:sticky lg:top-24 lg:flex-col lg:gap-1 lg:overflow-visible lg:pb-0">
           {items.map((item) => {
             const active = pathname === item.path || pathname?.startsWith(`${item.path}/`);
             const Icon = item.icon;
@@ -22,7 +22,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 key={item.path}
                 href={item.path}
                 aria-current={active ? "page" : undefined}
-                className={`group relative flex flex-none items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors lg:w-11 lg:justify-center lg:px-0 lg:py-2.5 ${
+                className={`group relative flex flex-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
                     ? "bg-teal-400/10 text-teal-400"
                     : "text-foreground/50 hover:bg-surface-hover hover:text-foreground"
@@ -34,10 +34,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   }`}
                 />
                 <Icon className="h-5 w-5 flex-none" strokeWidth={active ? 2.25 : 1.75} />
-                <span className="lg:hidden">{item.label}</span>
-                <span className="pointer-events-none absolute left-full top-1/2 z-20 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-medium text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100 lg:block">
-                  {item.label}
-                </span>
+                <span className="whitespace-nowrap">{item.label}</span>
               </Link>
             );
           })}
