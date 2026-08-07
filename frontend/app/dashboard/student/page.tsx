@@ -82,7 +82,6 @@ export default function StudentDashboardPage() {
         <StatCard label="Enrolled" value={String(data.myCourses.length)} icon={BookOpen} />
         <StatCard label="Completed" value={String(completedCount)} icon={Award} />
         <StatCard label="Wishlist" value={String(data.wishlist.length)} icon={Heart} />
-        <StatCard label="Certificates" value={String(data.certificates.length)} icon={Award} />
         <StatCard
           label="Upcoming live sessions"
           value={String(

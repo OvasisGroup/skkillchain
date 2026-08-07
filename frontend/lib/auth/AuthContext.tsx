@@ -66,11 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [tokens]);
 
   const [sessionExpired, setSessionExpired] = useState(false);
-  const [continuing, setContinuing] = useState(false);
   // Holds the resolver for the in-flight refresh promise apiFetch is
-  // awaiting — set when the modal opens, called once the user picks
-  // Continue or Cancel. client.ts's own dedup means at most one of these
-  // is ever pending at a time, so a single ref (not a queue) is enough.
+  // awaiting — set only once a *silent* refresh attempt has already
+  // failed (see performRefresh/setRefreshHandler below), so the modal is
+  // reserved for a genuinely dead refresh token, not routine 15-minute
+  // access-token rotation. client.ts's own dedup means at most one of
+  // these is ever pending at a time, so a single ref (not a queue) is
+  // enough.
   const pendingResolveRef = useRef<((token: string | null) => void) | null>(null);
 
   const performRefresh = useCallback(async (): Promise<string | null> => {
@@ -90,36 +92,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setRefreshHandler(() => {
-      if (!tokensRef.current) return Promise.resolve(null);
+    setRefreshHandler(async () => {
+      if (!tokensRef.current) return null;
+      // Try silently first — a 401 almost always just means the 15-minute
+      // access token rotated, which a valid refresh token handles with no
+      // user-visible interruption. Only fall back to asking the user once
+      // the refresh token itself is confirmed dead, since at that point
+      // there's genuinely no way to continue without them.
+      const silent = await performRefresh();
+      if (silent) return silent;
       return new Promise<string | null>((resolve) => {
         pendingResolveRef.current = resolve;
         setSessionExpired(true);
       });
     });
     return () => setRefreshHandler(null);
-  }, []);
+  }, [performRefresh]);
 
-  const handleContinue = useCallback(async () => {
+  // By the time the modal is showing, performRefresh() has already failed
+  // and cleared tokens/user — neither choice has a session left to save,
+  // so both just resolve the pending apiFetch call (with no token) and
+  // point the user somewhere sensible.
+  const handleContinue = useCallback(() => {
     const resolve = pendingResolveRef.current;
     pendingResolveRef.current = null;
-    setContinuing(true);
-    const newToken = await performRefresh();
-    setContinuing(false);
     setSessionExpired(false);
-    resolve?.(newToken);
-  }, [performRefresh]);
+    resolve?.(null);
+    router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+  }, [router]);
 
   const handleCancel = useCallback(() => {
     const resolve = pendingResolveRef.current;
     pendingResolveRef.current = null;
     setSessionExpired(false);
-    // The access token that just 401'd is already unusable, so there's no
-    // authenticated call left to make here — just drop the session
-    // locally, same as performRefresh()'s own failure branch does.
-    storeTokens(null);
-    setTokens(null);
-    setUser(null);
     resolve?.(null);
     router.push("/");
   }, [router]);
@@ -218,12 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      <SessionExpiredModal
-        open={sessionExpired}
-        busy={continuing}
-        onContinue={handleContinue}
-        onCancel={handleCancel}
-      />
+      <SessionExpiredModal open={sessionExpired} onContinue={handleContinue} onCancel={handleCancel} />
     </AuthContext.Provider>
   );
 }
