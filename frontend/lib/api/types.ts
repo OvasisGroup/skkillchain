@@ -780,8 +780,22 @@ export interface HackathonWinner {
   placement: number;
   prize_description: string;
   submission: HackathonSubmission;
-  participant: HackathonOrganizer;
+  participant: {
+    id: string;
+    email: string;
+    profile: Profile;
+  };
   announced_at: string;
+}
+
+// Exactly one of image/video_url is ever set (enforced backend-side) —
+// never both, never neither.
+export interface HackathonGalleryImage {
+  id: string;
+  image: string | null;
+  video_url: string | null;
+  caption: string;
+  sort_order: number;
 }
 
 export interface HackathonDetail extends Hackathon {
@@ -793,6 +807,7 @@ export interface HackathonDetail extends Hackathon {
   is_registration_open: boolean;
   published_at: string | null;
   winners: HackathonWinner[];
+  gallery_images: HackathonGalleryImage[];
   created_at: string;
   updated_at: string;
 }

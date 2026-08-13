@@ -4,7 +4,13 @@ from rest_framework import serializers
 
 from apps.identity.serializers import ProfileSerializer
 
-from .models import Hackathon, HackathonRegistration, HackathonSubmission, HackathonWinner
+from .models import (
+    Hackathon,
+    HackathonGalleryImage,
+    HackathonRegistration,
+    HackathonSubmission,
+    HackathonWinner,
+)
 
 User = get_user_model()
 
@@ -67,9 +73,28 @@ class HackathonWinnerSerializer(serializers.ModelSerializer):
         model = HackathonWinner
         fields = ["id", "placement", "prize_description", "submission", "participant", "announced_at"]
 
-    @extend_schema_field(OrganizerSummarySerializer)
+    @extend_schema_field(ParticipantSummarySerializer)
     def get_participant(self, winner):
-        return OrganizerSummarySerializer(winner.submission.registration.participant).data
+        return ParticipantSummarySerializer(winner.submission.registration.participant).data
+
+
+class HackathonGalleryImageSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False, allow_null=True)
+    video_url = serializers.URLField(required=False, allow_blank=True, max_length=500)
+
+    class Meta:
+        model = HackathonGalleryImage
+        fields = ["id", "image", "video_url", "caption", "sort_order"]
+
+    def validate(self, attrs):
+        # Mirrors HackathonGalleryImage.clean() — enforced here too since
+        # partial (PATCH-style) updates and this endpoint's create path
+        # don't otherwise call full_clean().
+        has_image = bool(attrs.get("image")) if "image" in attrs else bool(self.instance and self.instance.image)
+        has_video = bool(attrs.get("video_url")) if "video_url" in attrs else bool(self.instance and self.instance.video_url)
+        if has_image == has_video:
+            raise serializers.ValidationError("Provide exactly one of image or video_url, not both.")
+        return attrs
 
 
 class HackathonDetailSerializer(serializers.ModelSerializer):
@@ -78,6 +103,7 @@ class HackathonDetailSerializer(serializers.ModelSerializer):
     is_registration_open = serializers.BooleanField(read_only=True)
     registered_count = serializers.IntegerField(read_only=True)
     winners = serializers.SerializerMethodField()
+    gallery_images = HackathonGalleryImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Hackathon
@@ -106,6 +132,7 @@ class HackathonDetailSerializer(serializers.ModelSerializer):
             "is_registration_open",
             "published_at",
             "winners",
+            "gallery_images",
             "created_at",
             "updated_at",
         ]
@@ -113,7 +140,10 @@ class HackathonDetailSerializer(serializers.ModelSerializer):
     @extend_schema_field(HackathonWinnerSerializer(many=True))
     def get_winners(self, hackathon):
         return HackathonWinnerSerializer(
-            hackathon.winners.select_related("submission__registration__participant"), many=True
+            hackathon.winners.select_related(
+                "submission__registration__participant__profile"
+            ),
+            many=True,
         ).data
 
 

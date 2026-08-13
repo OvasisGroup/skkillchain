@@ -1,9 +1,41 @@
 import { AlertTriangle, Trophy } from "lucide-react";
 import Link from "next/link";
 import { HackathonCard } from "@/components/HackathonCard";
-import { listHackathons, type HackathonScope } from "@/lib/api/hackathons";
-import type { Hackathon } from "@/lib/api/types";
+import { PreviousHackathonCard } from "@/components/hackathons/PreviousHackathonCard";
+import { API_BASE_URL, apiFetch } from "@/lib/api/client";
+import { getHackathon, listHackathons, type HackathonScope } from "@/lib/api/hackathons";
+import type { CursorPage, Hackathon, HackathonDetail } from "@/lib/api/types";
 import { Reveal } from "@/components/animation/Reveal";
+
+// Cursor-paginated, so showing *all* of them means walking every `next`
+// link ourselves rather than just rendering the first page — same pattern
+// as sitemap.ts's fetchAllCourses, capped the same way so a pagination bug
+// can't spin forever.
+async function fetchAllCompletedHackathons(): Promise<Hackathon[]> {
+  const hackathons: Hackathon[] = [];
+  let path: string | null = "/hackathons/?scope=completed";
+
+  for (let guard = 0; path && guard < 100; guard++) {
+    const page: CursorPage<Hackathon> = await apiFetch<CursorPage<Hackathon>>(path, {
+      cache: "no-store",
+    });
+    hackathons.push(...page.results);
+    path = page.next ? page.next.replace(API_BASE_URL, "") : null;
+  }
+
+  return hackathons;
+}
+
+// The list endpoint doesn't carry winners/gallery_images (kept light for the
+// active/upcoming browsing case, where they're always empty anyway) — the
+// showcase section below needs the full detail per completed hackathon, so
+// this fetches each one individually rather than widening the shared list
+// serializer for a section only this page uses.
+async function listPreviousHackathons(): Promise<HackathonDetail[]> {
+  const summaries = await fetchAllCompletedHackathons();
+  const details = await Promise.all(summaries.map((h) => getHackathon(h.id).catch(() => null)));
+  return details.filter((h): h is HackathonDetail => h !== null);
+}
 
 export const metadata = {
   title: "Hackathons",
@@ -32,12 +64,22 @@ export default async function HackathonsPage({
   let hackathons: Hackathon[] = [];
   let loadError: string | null = null;
 
-  try {
-    const page = await listHackathons({ scope });
-    hackathons = page.results;
-  } catch {
-    loadError = "We couldn't reach the hackathons API right now. Make sure it's running.";
-  }
+  // Run in parallel, not a waterfall — the two fetches are independent, and
+  // the previous-hackathons one specifically is isolated with its own
+  // .catch() so a failure there (it's supplementary) can't blank out an
+  // otherwise-successful active/upcoming/completed listing with a full-page
+  // error.
+  const [scopedResult, previousHackathons] = await Promise.all([
+    listHackathons({ scope })
+      .then((page) => ({ hackathons: page.results, loadError: null }))
+      .catch(() => ({
+        hackathons: [] as Hackathon[],
+        loadError: "We couldn't reach the hackathons API right now. Make sure it's running.",
+      })),
+    listPreviousHackathons().catch(() => []),
+  ]);
+  hackathons = scopedResult.hackathons;
+  loadError = scopedResult.loadError;
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-16">
@@ -90,6 +132,22 @@ export default async function HackathonsPage({
             <HackathonCard key={hackathon.id} hackathon={hackathon} />
           ))}
         </div>
+      )}
+
+      {previousHackathons.length > 0 && (
+        <Reveal className="mt-20">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+            Previous hackathons
+          </h2>
+          <p className="mt-2 text-sm text-foreground/60">
+            A look back at what past cohorts built — winners, prizes, and event highlights.
+          </p>
+          <div className="mt-8 space-y-8">
+            {previousHackathons.map((hackathon) => (
+              <PreviousHackathonCard key={hackathon.id} hackathon={hackathon} />
+            ))}
+          </div>
+        </Reveal>
       )}
     </div>
   );

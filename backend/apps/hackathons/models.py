@@ -198,6 +198,43 @@ class HackathonSubmission(models.Model):
         return f"{self.title} ({self.registration.participant})"
 
 
+def hackathon_gallery_upload_path(instance, filename):
+    return f"hackathons/{instance.hackathon_id}/gallery/{filename}"
+
+
+class HackathonGalleryImage(models.Model):
+    """
+    Despite the name (kept for continuity with the existing hackathon_
+    gallery_images table/API path), each row is either a photo (`image`)
+    or a video (`video_url` — a link to an externally-hosted video, e.g.
+    YouTube/Vimeo, or a direct file URL) — never both, never neither. See
+    clean() below.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    hackathon = models.ForeignKey(
+        Hackathon, on_delete=models.CASCADE, related_name="gallery_images"
+    )
+    image = models.ImageField(upload_to=hackathon_gallery_upload_path, blank=True)
+    video_url = models.URLField(max_length=500, blank=True)
+    caption = models.CharField(max_length=200, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "hackathon_gallery_images"
+        ordering = ["sort_order", "uploaded_at"]
+
+    def __str__(self):
+        return f"Gallery item for {self.hackathon}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if bool(self.image) == bool(self.video_url):
+            raise ValidationError("Provide exactly one of image or video_url, not both.")
+
+
 class HackathonWinner(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     hackathon = models.ForeignKey(Hackathon, on_delete=models.CASCADE, related_name="winners")

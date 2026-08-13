@@ -1,6 +1,7 @@
 "use client";
 
-import { FileText, Settings as SettingsIcon, Users } from "lucide-react";
+import { FileText, Settings as SettingsIcon, Trophy, Users } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { ErrorState, LoadingState } from "@/components/dashboard/DashboardStates";
@@ -8,10 +9,11 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Panel } from "@/components/dashboard/Panel";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { listUsers, updateUserStatus } from "@/lib/api/admin";
+import { listAdminHackathons } from "@/lib/api/adminHackathons";
 import { listAuditLogs } from "@/lib/api/audit";
 import { ApiError } from "@/lib/api/client";
 import { listSettings, upsertSetting } from "@/lib/api/settings";
-import type { AdminUser, AuditLog, Setting } from "@/lib/api/types";
+import type { AdminUser, AuditLog, Hackathon, Setting } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Reveal } from "@/components/animation/Reveal";
 
@@ -83,18 +85,25 @@ export default function AdminDashboardPage() {
   const [emailSearch, setEmailSearch] = useState("");
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settings, setSettings] = useState<Setting[]>([]);
+  const [hackathons, setHackathons] = useState<Hackathon[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accessToken) return;
     let cancelled = false;
-    Promise.all([listUsers(accessToken), listAuditLogs(accessToken), listSettings(accessToken)])
-      .then(([usersPage, auditPage, settingsData]) => {
+    Promise.all([
+      listUsers(accessToken),
+      listAuditLogs(accessToken),
+      listSettings(accessToken),
+      listAdminHackathons(accessToken),
+    ])
+      .then(([usersPage, auditPage, settingsData, hackathonsPage]) => {
         if (cancelled) return;
         setUsers(usersPage.results);
         setAuditLogs(auditPage.results);
         setSettings(settingsData);
+        setHackathons(hackathonsPage.results);
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof ApiError ? err.message_ : "Couldn't load admin data.");
@@ -142,7 +151,39 @@ export default function AdminDashboardPage() {
         <StatCard label="Active" value={String(activeCount)} icon={Users} />
         <StatCard label="Audit events" value={String(auditLogs.length)} icon={FileText} />
         <StatCard label="Settings" value={String(settings.length)} icon={SettingsIcon} />
+        <StatCard label="Hackathons" value={String(hackathons.length)} icon={Trophy} />
       </Reveal>
+
+      <Panel title="Hackathons">
+        <DataTable
+          rows={hackathons}
+          getRowKey={(h) => h.id}
+          emptyMessage="No hackathons yet."
+          columns={[
+            { header: "Title", cell: (h) => h.title },
+            { header: "Organizer", cell: (h) => h.organizer.email },
+            {
+              header: "Status",
+              cell: (h) => <span className="capitalize">{h.status}</span>,
+            },
+            {
+              header: "Phase",
+              cell: (h) => <span className="capitalize">{h.phase}</span>,
+            },
+            {
+              header: "",
+              cell: (h) => (
+                <Link
+                  href={`/dashboard/admin/hackathons/${h.id}`}
+                  className="rounded-full border border-border-strong px-3 py-1 text-xs font-semibold text-foreground/80 hover:bg-surface-hover"
+                >
+                  Manage
+                </Link>
+              ),
+            },
+          ]}
+        />
+      </Panel>
 
       <Panel title="Users">
         <form onSubmit={handleSearch} className="mb-3 flex flex-wrap gap-2">

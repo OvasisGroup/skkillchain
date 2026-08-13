@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import Hackathon, HackathonRegistration, HackathonSubmission, HackathonWinner
+from .models import (
+    Hackathon,
+    HackathonGalleryImage,
+    HackathonRegistration,
+    HackathonSubmission,
+    HackathonWinner,
+)
 
 
 class HackathonRegistrationInline(admin.TabularInline):
@@ -9,13 +15,20 @@ class HackathonRegistrationInline(admin.TabularInline):
     readonly_fields = ["id", "registered_at"]
 
 
+class HackathonGalleryImageInline(admin.TabularInline):
+    model = HackathonGalleryImage
+    extra = 1
+    readonly_fields = ["id", "uploaded_at"]
+    fields = ["image", "caption", "sort_order", "uploaded_at"]
+
+
 @admin.register(Hackathon)
 class HackathonAdmin(admin.ModelAdmin):
     list_display = ["title", "host_type", "status", "starts_at", "ends_at", "organizer"]
     list_filter = ["status", "host_type"]
     search_fields = ["title", "organizer__email", "partner_name"]
     readonly_fields = ["id", "slug", "published_at"]
-    inlines = [HackathonRegistrationInline]
+    inlines = [HackathonRegistrationInline, HackathonGalleryImageInline]
 
 
 @admin.register(HackathonRegistration)

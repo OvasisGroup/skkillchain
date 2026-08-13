@@ -12,12 +12,20 @@ from apps.authorization.permissions import HasPermission
 from shared.api.pagination import (
     EndsAtDescCursorPagination,
     RegisteredAtCursorPagination,
+    SortOrderCursorPagination,
     StartsAtCursorPagination,
 )
 
-from .models import Hackathon, HackathonRegistration, HackathonSubmission, HackathonWinner
+from .models import (
+    Hackathon,
+    HackathonGalleryImage,
+    HackathonRegistration,
+    HackathonSubmission,
+    HackathonWinner,
+)
 from .serializers import (
     HackathonDetailSerializer,
+    HackathonGalleryImageSerializer,
     HackathonListSerializer,
     HackathonRegistrationSerializer,
     HackathonSubmissionSerializer,
@@ -494,6 +502,7 @@ class HackathonWinnerCreateView(APIView):
 class HackathonAdminCancelView(APIView):
     permission_classes = [HasPermission]
     required_permission = "hackathons.manage"
+    throttle_scope = "admin-write"
 
     def post(self, request, id):
         hackathon = get_object_or_404(Hackathon, pk=id)
@@ -509,3 +518,168 @@ class HackathonAdminCancelView(APIView):
             request=request,
         )
         return Response(HackathonListSerializer(hackathon).data)
+
+
+@extend_schema(
+    tags=["Admin"],
+    description="Lists every hackathon on the platform, any status or organizer — the "
+    "moderation counterpart to the organizer's own (self-scoped) list endpoint.",
+)
+class AdminHackathonListView(generics.ListAPIView):
+    serializer_class = HackathonListSerializer
+    permission_classes = [HasPermission]
+    required_permission = "hackathons.manage"
+    throttle_scope = "admin-write"
+    queryset = Hackathon.objects.select_related("organizer").order_by("-created_at")
+
+
+@extend_schema(
+    tags=["Admin"],
+    description="Gets or updates any hackathon regardless of organizer — for platform "
+    "moderation (e.g. fixing up a past event's writeup after the fact), not the organizer's "
+    "own self-service editing.",
+)
+class AdminHackathonDetailView(generics.RetrieveUpdateAPIView):
+    serializer_class = HackathonWriteSerializer
+    permission_classes = [HasPermission]
+    required_permission = "hackathons.manage"
+    throttle_scope = "admin-write"
+    queryset = Hackathon.objects.all()
+    lookup_url_kwarg = "id"
+
+    def perform_update(self, serializer):
+        hackathon = serializer.save()
+        record_event(
+            actor=self.request.user,
+            action="hackathon.admin_update",
+            entity_type="Hackathon",
+            entity_id=hackathon.id,
+            request=self.request,
+        )
+
+
+@extend_schema(
+    tags=["Admin"],
+    description="Lists everyone registered for any hackathon, including their submission if "
+    "they have one — the moderation counterpart to the organizer's own roster view.",
+)
+class AdminHackathonRegistrationsView(generics.ListAPIView):
+    serializer_class = OrganizerRegistrationSerializer
+    permission_classes = [HasPermission]
+    required_permission = "hackathons.manage"
+    throttle_scope = "admin-write"
+    pagination_class = RegisteredAtCursorPagination
+
+    def get_queryset(self):
+        hackathon = get_object_or_404(Hackathon, pk=self.kwargs["id"])
+        return hackathon.registrations.select_related(
+            "participant", "participant__profile", "submission"
+        )
+
+
+@extend_schema(
+    tags=["Admin"],
+    request=WinnerCreateSerializer,
+    responses={201: HackathonWinnerSerializer},
+    description="Declares a winner for any hackathon regardless of organizer — the moderation "
+    "counterpart to the organizer's own winner-declaring endpoint.",
+)
+class AdminHackathonWinnerCreateView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = "hackathons.manage"
+    throttle_scope = "admin-write"
+
+    def post(self, request, id):
+        hackathon = get_object_or_404(Hackathon, pk=id)
+        serializer = WinnerCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        registration = get_object_or_404(
+            HackathonRegistration, pk=data["registration_id"], hackathon=hackathon
+        )
+        submission = getattr(registration, "submission", None)
+        if submission is None:
+            raise ValidationError("This registration has no submission to award.")
+
+        if HackathonWinner.objects.filter(hackathon=hackathon, placement=data["placement"]).exists():
+            raise ValidationError(f"Placement {data['placement']} is already taken.")
+        if HackathonWinner.objects.filter(hackathon=hackathon, submission=submission).exists():
+            raise ValidationError("This submission has already been declared a winner.")
+
+        winner = HackathonWinner.objects.create(
+            hackathon=hackathon,
+            submission=submission,
+            placement=data["placement"],
+            prize_description=data.get("prize_description", ""),
+        )
+        record_event(
+            actor=request.user,
+            action="hackathon.admin_winner_declare",
+            entity_type="Hackathon",
+            entity_id=hackathon.id,
+            request=request,
+            payload={"placement": winner.placement, "submission_id": str(submission.id)},
+        )
+        return Response(HackathonWinnerSerializer(winner).data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    tags=["Admin"],
+    description="Lists or adds gallery items (event photos, or videos by URL) for any "
+    "hackathon — each item is exactly one of `image` or `video_url`.",
+)
+class AdminHackathonGalleryImageListCreateView(generics.ListCreateAPIView):
+    serializer_class = HackathonGalleryImageSerializer
+    permission_classes = [HasPermission]
+    required_permission = "hackathons.manage"
+    throttle_scope = "admin-write"
+    # Not DefaultCursorPagination — that hardcodes ordering="-created_at",
+    # a field this model doesn't have (it's sort_order/uploaded_at, matching
+    # the model's Meta.ordering below, same as Section/Lesson curriculum
+    # ordering).
+    pagination_class = SortOrderCursorPagination
+
+    def get_queryset(self):
+        hackathon = get_object_or_404(Hackathon, pk=self.kwargs["id"])
+        return hackathon.gallery_images.all()
+
+    def perform_create(self, serializer):
+        hackathon = get_object_or_404(Hackathon, pk=self.kwargs["id"])
+        image = serializer.save(hackathon=hackathon)
+        record_event(
+            actor=self.request.user,
+            action="hackathon.admin_gallery_image_add",
+            entity_type="Hackathon",
+            entity_id=hackathon.id,
+            request=self.request,
+            payload={"image_id": str(image.id)},
+        )
+
+
+@extend_schema(
+    tags=["Admin"],
+    description="Deletes a gallery image from any hackathon.",
+)
+class AdminHackathonGalleryImageDetailView(generics.DestroyAPIView):
+    serializer_class = HackathonGalleryImageSerializer
+    permission_classes = [HasPermission]
+    required_permission = "hackathons.manage"
+    throttle_scope = "admin-write"
+    lookup_url_kwarg = "image_id"
+
+    def get_queryset(self):
+        return HackathonGalleryImage.objects.filter(hackathon_id=self.kwargs["id"])
+
+    def perform_destroy(self, instance):
+        hackathon_id = instance.hackathon_id
+        image_id = instance.id
+        instance.delete()
+        record_event(
+            actor=self.request.user,
+            action="hackathon.admin_gallery_image_remove",
+            entity_type="Hackathon",
+            entity_id=hackathon_id,
+            request=self.request,
+            payload={"image_id": str(image_id)},
+        )

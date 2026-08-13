@@ -1,7 +1,14 @@
+import base64
 from datetime import timedelta
 
 import pytest
 from django.utils import timezone
+
+# Smallest possible valid PNG (1x1 transparent pixel) — real image bytes are
+# required since ImageField validation actually decodes the file via Pillow.
+_ONE_PIXEL_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
 
 from apps.hackathons.models import Hackathon, HackathonRegistration, HackathonSubmission
 
@@ -590,3 +597,82 @@ class TestHackathonAdminCancelView:
 
         assert response.status_code == 200
         assert response.data["status"] == "canceled"
+
+
+class TestAdminHackathonGalleryImageListCreateView:
+    def _admin(self, django_user_model):
+        from apps.authorization.models import Role, UserRole
+
+        admin = django_user_model.objects.create_user(email="gallery-admin@example.com", password="x")
+        UserRole.objects.create(user=admin, role=Role.objects.get(code="administrator"))
+        return admin
+
+    def test_video_url_only_succeeds(self, api_client, organizer, django_user_model):
+        hackathon = _hackathon(organizer, status=Hackathon.STATUS_PUBLISHED)
+        api_client.force_authenticate(user=self._admin(django_user_model))
+
+        response = api_client.post(
+            f"/api/v1/admin/hackathons/{hackathon.id}/gallery-images/",
+            {"video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "caption": "Demo day"},
+            format="json",
+        )
+
+        assert response.status_code == 201
+        assert response.data["video_url"] == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        assert not response.data["image"]
+
+    def test_image_only_succeeds(self, api_client, organizer, django_user_model):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        hackathon = _hackathon(organizer, status=Hackathon.STATUS_PUBLISHED)
+        api_client.force_authenticate(user=self._admin(django_user_model))
+        image = SimpleUploadedFile("photo.png", _ONE_PIXEL_PNG, content_type="image/png")
+
+        response = api_client.post(
+            f"/api/v1/admin/hackathons/{hackathon.id}/gallery-images/",
+            {"image": image, "caption": "Opening ceremony"},
+            format="multipart",
+        )
+
+        assert response.status_code == 201
+        assert response.data["image"]
+        assert not response.data["video_url"]
+
+    def test_both_image_and_video_url_rejected(self, api_client, organizer, django_user_model):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        hackathon = _hackathon(organizer, status=Hackathon.STATUS_PUBLISHED)
+        api_client.force_authenticate(user=self._admin(django_user_model))
+        image = SimpleUploadedFile("photo.png", _ONE_PIXEL_PNG, content_type="image/png")
+
+        response = api_client.post(
+            f"/api/v1/admin/hackathons/{hackathon.id}/gallery-images/",
+            {"image": image, "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+            format="multipart",
+        )
+
+        assert response.status_code == 400
+
+    def test_neither_image_nor_video_url_rejected(self, api_client, organizer, django_user_model):
+        hackathon = _hackathon(organizer, status=Hackathon.STATUS_PUBLISHED)
+        api_client.force_authenticate(user=self._admin(django_user_model))
+
+        response = api_client.post(
+            f"/api/v1/admin/hackathons/{hackathon.id}/gallery-images/",
+            {"caption": "Nothing attached"},
+            format="json",
+        )
+
+        assert response.status_code == 400
+
+    def test_forbidden_without_permission(self, api_client, organizer):
+        hackathon = _hackathon(organizer, status=Hackathon.STATUS_PUBLISHED)
+        api_client.force_authenticate(user=organizer)
+
+        response = api_client.post(
+            f"/api/v1/admin/hackathons/{hackathon.id}/gallery-images/",
+            {"video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+            format="json",
+        )
+
+        assert response.status_code == 403

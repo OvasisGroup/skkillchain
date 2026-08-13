@@ -53,9 +53,35 @@ urlpatterns = [
         name="hackathon-winner-create",
     ),
     # Moderation
+    path("admin/hackathons/", views.AdminHackathonListView.as_view(), name="hackathon-admin-list"),
+    path(
+        "admin/hackathons/<uuid:id>/",
+        views.AdminHackathonDetailView.as_view(),
+        name="hackathon-admin-detail",
+    ),
     path(
         "admin/hackathons/<uuid:id>/cancel/",
         views.HackathonAdminCancelView.as_view(),
         name="hackathon-admin-cancel",
+    ),
+    path(
+        "admin/hackathons/<uuid:id>/registrations/",
+        views.AdminHackathonRegistrationsView.as_view(),
+        name="hackathon-admin-registrations",
+    ),
+    path(
+        "admin/hackathons/<uuid:id>/winners/",
+        views.AdminHackathonWinnerCreateView.as_view(),
+        name="hackathon-admin-winner-create",
+    ),
+    path(
+        "admin/hackathons/<uuid:id>/gallery-images/",
+        views.AdminHackathonGalleryImageListCreateView.as_view(),
+        name="hackathon-admin-gallery-image-list-create",
+    ),
+    path(
+        "admin/hackathons/<uuid:id>/gallery-images/<uuid:image_id>/",
+        views.AdminHackathonGalleryImageDetailView.as_view(),
+        name="hackathon-admin-gallery-image-detail",
     ),
 ]
