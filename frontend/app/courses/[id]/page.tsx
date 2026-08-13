@@ -9,7 +9,7 @@ import { getCourse, getCoursePreview } from "@/lib/api/courses";
 import { listCourseDiscussions } from "@/lib/api/discussions";
 import { listCourseLiveSessions } from "@/lib/api/liveSessions";
 import type { CourseDetail, DiscussionPost, LiveSession, PreviewSection } from "@/lib/api/types";
-import { SITE_NAME, absoluteUrl } from "@/lib/seo";
+import { SITE_NAME, absoluteUrl, safeJsonLd } from "@/lib/seo";
 import { Reveal } from "@/components/animation/Reveal";
 
 const DIFFICULTY_STYLES: Record<CourseDetail["difficulty"], string> = {
@@ -124,7 +124,7 @@ export default async function CourseDetailPage({
     <div className="mx-auto max-w-7xl px-6 py-16">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(courseJsonLd(course)) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(courseJsonLd(course)) }}
       />
       <nav className="text-sm text-foreground/40">
         <Link href="/courses" className="hover:text-foreground">

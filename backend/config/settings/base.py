@@ -319,6 +319,12 @@ SPECTACULAR_SETTINGS = {
 # verifying provider tokens — see apps/identity/oauth/).
 GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 APPLE_OAUTH_CLIENT_ID = env("APPLE_OAUTH_CLIENT_ID", default="")
+# Used by apps/identity/oauth/facebook.py to confirm a token via /debug_token
+# was actually issued for *this* app, not just any app the user authorized
+# — without this check, a token from an unrelated Facebook app carrying the
+# same user's identity would be accepted, enabling account takeover.
+FACEBOOK_APP_ID = env("FACEBOOK_APP_ID", default="")
+FACEBOOK_APP_SECRET = env("FACEBOOK_APP_SECRET", default="")
 
 # Web frontend origin — used to build user-facing links (e.g. a
 # certificate's QR verification URL) that point at the app, not the API.

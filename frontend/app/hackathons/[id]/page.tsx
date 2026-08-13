@@ -5,7 +5,7 @@ import { HackathonRegisterButton } from "@/components/HackathonRegisterButton";
 import { ApiError } from "@/lib/api/client";
 import { getHackathon } from "@/lib/api/hackathons";
 import type { HackathonDetail } from "@/lib/api/types";
-import { SITE_NAME, absoluteUrl } from "@/lib/seo";
+import { SITE_NAME, absoluteUrl, safeJsonLd } from "@/lib/seo";
 import { Reveal } from "@/components/animation/Reveal";
 
 const PHASE_STYLES: Record<HackathonDetail["phase"], string> = {
@@ -89,7 +89,7 @@ export default async function HackathonDetailPage({
     <div className="mx-auto max-w-7xl px-6 py-16">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(hackathonJsonLd(hackathon)) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(hackathonJsonLd(hackathon)) }}
       />
       <nav className="text-sm text-foreground/40">
         <Link href="/hackathons" className="hover:text-foreground">

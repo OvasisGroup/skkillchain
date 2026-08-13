@@ -8,7 +8,7 @@ import { AuthCard, AuthDivider, authInputClass, authLabelClass } from "@/compone
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { primaryDashboardPath } from "@/lib/auth/roles";
+import { primaryDashboardPath, safeRedirectPath } from "@/lib/auth/roles";
 
 export default function RegisterPage() {
   return (
@@ -34,7 +34,7 @@ function RegisterForm() {
     setIsSubmitting(true);
     try {
       const user = await loginWithGoogle(idToken);
-      router.push(searchParams.get("next") || primaryDashboardPath(user));
+      router.push(safeRedirectPath(searchParams.get("next"), primaryDashboardPath(user)));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message_ : "Something went wrong. Please try again."
@@ -60,7 +60,7 @@ function RegisterForm() {
     setIsSubmitting(true);
     try {
       await register(email, password);
-      router.push(searchParams.get("next") || "/courses");
+      router.push(safeRedirectPath(searchParams.get("next"), "/courses"));
     } catch (err) {
       setError(err instanceof ApiError ? err.message_ : "Something went wrong. Please try again.");
     } finally {

@@ -263,6 +263,63 @@ class TestSectionAndLessonAuthoring:
         )
         assert lesson_response.status_code == 201
 
+    def test_lesson_content_file_rejects_disallowed_extension(self, auth_client, instructor):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        course = Course.objects.create(owner=instructor, title="With Sections")
+        section = auth_client.post(
+            f"/api/v1/instructor/courses/{course.id}/sections/",
+            {"title": "Intro", "sort_order": 1},
+            format="json",
+        ).data
+        lesson_response = auth_client.post(
+            f"/api/v1/instructor/sections/{section['id']}/lessons/",
+            {"title": "Welcome", "lesson_type": "video", "sort_order": 1},
+            format="json",
+        )
+        lesson_id = lesson_response.data["id"]
+
+        # An .html "lesson" is exactly the stored-XSS/malware-hosting vector
+        # this validator exists to close — nginx serves /media/ same-origin
+        # as the API, so an unrestricted upload here becomes attacker-
+        # controlled script execution on api.skillchain.space.
+        malicious = SimpleUploadedFile(
+            "lesson.html", b"<script>alert(1)</script>", content_type="text/html"
+        )
+        response = auth_client.patch(
+            f"/api/v1/instructor/lessons/{lesson_id}/",
+            {"content_file": malicious},
+            format="multipart",
+        )
+
+        assert response.status_code == 400
+        assert "content_file" in response.data["errors"]
+
+    def test_lesson_content_file_accepts_allowed_extension(self, auth_client, instructor):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        course = Course.objects.create(owner=instructor, title="With Sections")
+        section = auth_client.post(
+            f"/api/v1/instructor/courses/{course.id}/sections/",
+            {"title": "Intro", "sort_order": 1},
+            format="json",
+        ).data
+        lesson_response = auth_client.post(
+            f"/api/v1/instructor/sections/{section['id']}/lessons/",
+            {"title": "Welcome", "lesson_type": "pdf", "sort_order": 1},
+            format="json",
+        )
+        lesson_id = lesson_response.data["id"]
+
+        pdf = SimpleUploadedFile("notes.pdf", b"%PDF-1.4 fake", content_type="application/pdf")
+        response = auth_client.patch(
+            f"/api/v1/instructor/lessons/{lesson_id}/",
+            {"content_file": pdf},
+            format="multipart",
+        )
+
+        assert response.status_code == 200
+
     def test_non_owner_cannot_add_section(self, api_client, instructor, other_instructor):
         course = Course.objects.create(owner=instructor, title="Not Yours")
         api_client.force_authenticate(user=other_instructor)

@@ -1,8 +1,17 @@
 import uuid
 
+from django.core.validators import FileExtensionValidator
 from django.db import models
 
 from apps.catalog.models import Course
+
+# content_file only ever holds video or PDF lesson content (see Lesson's
+# docstring) — but the field itself had no extension allowlist, so any
+# authenticated user with course-creation rights could upload an .html/.svg
+# "lesson" that nginx then serves same-origin under /media/ on the API
+# domain, a stored-XSS/malware-hosting foothold. Restricting to the file
+# types the feature actually needs closes that off.
+ALLOWED_LESSON_CONTENT_EXTENSIONS = ["mp4", "mov", "m4v", "webm", "pdf"]
 
 
 class Section(models.Model):
@@ -57,7 +66,12 @@ class Lesson(models.Model):
     # "lessons/<section-uuid>/<lesson-uuid>/<filename>" — the two UUIDs alone
     # take 82 characters, so 100 left almost no room for a real filename and
     # made Storage.get_available_name() fail outright on realistic names.
-    content_file = models.FileField(upload_to=lesson_content_upload_path, blank=True, max_length=255)
+    content_file = models.FileField(
+        upload_to=lesson_content_upload_path,
+        blank=True,
+        max_length=255,
+        validators=[FileExtensionValidator(allowed_extensions=ALLOWED_LESSON_CONTENT_EXTENSIONS)],
+    )
 
     class Meta:
         db_table = "lessons"

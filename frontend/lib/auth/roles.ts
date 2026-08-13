@@ -92,3 +92,15 @@ export function primaryDashboardPath(user: Me | null): string {
   if (!user) return "/dashboard/student";
   return PRIMARY_PRIORITY.find((p) => p.test(user))?.path ?? "/dashboard/student";
 }
+
+// A `?next=` value comes straight from the URL, so it's attacker-controlled
+// (e.g. a phishing link with `?next=https://evil.example/login`). Only
+// accept a same-site relative path — a single leading `/` and not `//`,
+// since `//host` is parsed by browsers as a protocol-relative URL and
+// escapes the site just like an absolute one.
+export function safeRedirectPath(next: string | null, fallback: string): string {
+  if (next && next.startsWith("/") && !next.startsWith("//")) {
+    return next;
+  }
+  return fallback;
+}

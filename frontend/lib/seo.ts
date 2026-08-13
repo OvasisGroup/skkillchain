@@ -30,6 +30,30 @@ export function absoluteUrl(path: string): string {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+// JSON.stringify does not escape `<`, `>`, U+2028 (LINE SEPARATOR), or
+// U+2029 (PARAGRAPH SEPARATOR), so a user-controlled string (course/
+// hackathon title, summary, etc.) containing `</script>` can break out of
+// the JSON-LD <script> tag it's injected into via dangerouslySetInnerHTML
+// and run arbitrary JS. Escaping those to \u-sequences keeps the JSON value
+// identical while making it impossible to close the surrounding tag.
+// U+2028/U+2029 are built via fromCharCode rather than written as literal
+// source characters — embedded raw, they're parsed as line terminators by
+// the TS/JS tokenizer itself and break the file.
+const LINE_SEPARATOR = String.fromCharCode(0x2028);
+const PARAGRAPH_SEPARATOR = String.fromCharCode(0x2029);
+
+export function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data)
+    .split("<")
+    .join("\\u003c")
+    .split(">")
+    .join("\\u003e")
+    .split(LINE_SEPARATOR)
+    .join("\\u2028")
+    .split(PARAGRAPH_SEPARATOR)
+    .join("\\u2029");
+}
+
 export function organizationJsonLd() {
   return {
     "@context": "https://schema.org",

@@ -1,6 +1,7 @@
+from django.core.validators import FileExtensionValidator
 from rest_framework import serializers
 
-from .models import Lesson, Section
+from .models import ALLOWED_LESSON_CONTENT_EXTENSIONS, Lesson, Section
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -33,7 +34,15 @@ class SectionWriteSerializer(serializers.ModelSerializer):
 
 
 class LessonWriteSerializer(serializers.ModelSerializer):
-    content_file = serializers.FileField(required=False, allow_null=True)
+    # Declared explicitly (rather than relying on ModelSerializer's
+    # auto-generated field) so it stays a plain optional FileField — but
+    # that means the model field's validators aren't inherited automatically
+    # and must be repeated here, or this endpoint would accept any file type.
+    content_file = serializers.FileField(
+        required=False,
+        allow_null=True,
+        validators=[FileExtensionValidator(allowed_extensions=ALLOWED_LESSON_CONTENT_EXTENSIONS)],
+    )
 
     class Meta:
         model = Lesson

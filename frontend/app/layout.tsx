@@ -10,6 +10,7 @@ import {
   SITE_NAME,
   SITE_URL,
   organizationJsonLd,
+  safeJsonLd,
   websiteJsonLd,
 } from "@/lib/seo";
 import { ThemeProvider } from "@/lib/theme/ThemeContext";
@@ -79,7 +80,7 @@ export default function RootLayout({
           <script
             key={entry["@type"]}
             type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(entry) }}
+            dangerouslySetInnerHTML={{ __html: safeJsonLd(entry) }}
           />
         ))}
       </head>

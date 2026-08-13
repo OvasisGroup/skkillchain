@@ -8,7 +8,7 @@ import { AuthCard, AuthDivider, authInputClass, authLabelClass } from "@/compone
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { primaryDashboardPath } from "@/lib/auth/roles";
+import { primaryDashboardPath, safeRedirectPath } from "@/lib/auth/roles";
 
 export default function LoginPage() {
   return (
@@ -35,7 +35,7 @@ function LoginForm() {
     setIsSubmitting(true);
     try {
       const user = await loginWithGoogle(idToken);
-      router.push(searchParams.get("next") || primaryDashboardPath(user));
+      router.push(safeRedirectPath(searchParams.get("next"), primaryDashboardPath(user)));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message_ : "Something went wrong. Please try again."
@@ -54,7 +54,7 @@ function LoginForm() {
       if ("mfaToken" in result) {
         setMfaToken(result.mfaToken);
       } else {
-        router.push(searchParams.get("next") || primaryDashboardPath(result.user));
+        router.push(safeRedirectPath(searchParams.get("next"), primaryDashboardPath(result.user)));
       }
     } catch (err) {
       setError(
@@ -72,7 +72,7 @@ function LoginForm() {
     setIsSubmitting(true);
     try {
       const user = await completeMfaLogin(mfaToken, code);
-      router.push(searchParams.get("next") || primaryDashboardPath(user));
+      router.push(safeRedirectPath(searchParams.get("next"), primaryDashboardPath(user)));
     } catch (err) {
       setError(err instanceof ApiError ? err.message_ : "Invalid code. Please try again.");
     } finally {
