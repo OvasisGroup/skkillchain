@@ -7,16 +7,17 @@ export function listCourses(params?: {
   difficulty?: string;
   q?: string;
   is_free?: boolean;
+  signal?: AbortSignal;
 }): Promise<CursorPage<Course>> {
-  const query = params
-    ? new URLSearchParams(
-        Object.entries(params)
-          .filter(([, v]) => v !== undefined && v !== "")
-          .map(([k, v]) => [k, String(v)])
-      ).toString()
-    : "";
+  const { signal, ...filters } = params ?? {};
+  const query = new URLSearchParams(
+    Object.entries(filters)
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)])
+  ).toString();
   return apiFetch<CursorPage<Course>>(`/courses/${query ? `?${query}` : ""}`, {
     cache: "no-store",
+    signal,
   });
 }
 

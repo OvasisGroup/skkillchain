@@ -7,10 +7,10 @@ import { Reveal } from "@/components/animation/Reveal";
 const FEATURED_COUNT = 3;
 
 export async function Courses() {
-  // Landing content, not a data page — if the API is unreachable or nobody
-  // has published a course yet, skip the section entirely rather than show
-  // an empty/error block on the homepage.
-  const courses = await listCourses()
+  // Landing content, not a data page — if the API is unreachable, slow, or
+  // nobody has published a course yet, skip the section entirely rather than
+  // block the homepage's SSR response or show an empty/error block.
+  const courses = await listCourses({ signal: AbortSignal.timeout(5000) })
     .then((page) => page.results)
     .catch(() => []);
   if (courses.length === 0) return null;
