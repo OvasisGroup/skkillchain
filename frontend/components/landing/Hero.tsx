@@ -13,7 +13,7 @@ export function Hero() {
         <div className="mx-auto h-[36rem] w-[72rem] bg-teal-400/20 [clip-path:polygon(74%_44%,100%_61%,97%_26%,85%_0%,80%_2%,72%_32%,60%_62%,32%_35%,2%_46%,0%_68%,32%_100%,60%_75%)]" />
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 pt-20 sm:pt-28 lg:grid lg:grid-cols-2 lg:items-center lg:gap-x-12 lg:pt-32">
+      <div className="mx-auto max-w-7xl px-6 pt-8 sm:pt-16 lg:grid lg:grid-cols-2 lg:items-center lg:gap-x-12 lg:pt-32">
         <Reveal className="mx-auto max-w-2xl lg:mx-0" start="top 100%">
 
           <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground sm:text-6xl">
