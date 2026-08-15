@@ -16,6 +16,18 @@ const nextConfig: NextConfig = {
   // Removes the "X-Powered-By: Next.js" response header — no functional
   // value to a legitimate client, just free reconnaissance for an attacker.
   poweredByHeader: false,
+  // Course covers and profile avatars are user-uploaded originals served
+  // as-is by nginx (see infra/nginx/skillchain.conf's /media/ location) —
+  // multi-megabyte JPEGs/PNGs straight from a phone camera, not
+  // pre-resized. Without this, next/image refuses to optimize a remote
+  // host it doesn't know about, which is why these were plain <img> tags
+  // shipping full-resolution originals into a ~400px card.
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "api.skillchain.space", pathname: "/media/**" },
+      { protocol: "http", hostname: "localhost", port: "8000", pathname: "/media/**" },
+    ],
+  },
   // Next.js sends none of these by default. The API (Django's
   // SecurityMiddleware) already sets the equivalents, but the frontend
   // origin (www.skillchain.space) was serving pages with no HSTS/framing/

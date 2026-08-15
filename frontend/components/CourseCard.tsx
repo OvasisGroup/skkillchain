@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpen, Check, Heart, ShoppingCart } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -50,11 +51,12 @@ export function CourseCard({ course }: { course: Course }) {
       <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-teal-500">
         <Link href={`/courses/${course.id}`} className="absolute inset-0 z-10" aria-label={course.title} />
         {course.cover_image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={course.cover_image}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover"
+            fill
+            sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
+            className="object-cover"
           />
         ) : (
           <BookOpen className="h-10 w-10 text-emerald-950/80" strokeWidth={1.5} />

@@ -1,4 +1,5 @@
 import { UserRound } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import type { InstructorSummary } from "@/lib/api/types";
 
@@ -17,11 +18,12 @@ export function InstructorCard({ instructor }: { instructor: InstructorSummary }
     >
       <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-teal-500">
         {instructor.profile.avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={instructor.profile.avatar}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover"
+            fill
+            sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
+            className="object-cover"
           />
         ) : (
           <UserRound className="h-12 w-12 text-emerald-950/80" strokeWidth={1.5} />
