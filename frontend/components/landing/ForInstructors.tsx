@@ -36,7 +36,7 @@ export function ForInstructors() {
 
           <Link
             href="/register"
-            className="group mt-10 inline-flex items-center gap-2 rounded-full bg-teal-400 px-6 py-3.5 text-sm font-semibold text-emerald-950 shadow-lg shadow-teal-500/20 transition-opacity hover:opacity-90"
+            className="group mt-10 flex w-full items-center justify-center gap-2 rounded-full bg-teal-400 px-6 py-3.5 text-sm font-semibold text-emerald-950 shadow-lg shadow-teal-500/20 transition-opacity hover:opacity-90 sm:inline-flex sm:w-auto"
           >
             Apply to teach
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
