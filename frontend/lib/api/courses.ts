@@ -20,6 +20,13 @@ export function listCourses(params?: {
   });
 }
 
+// Unwraps the first page for callers that just want a flat list (the
+// homepage's featured strip) — mirrors listInstructors()'s shape so both
+// landing sections fetch identically instead of one juggling pagination.
+export function listFeaturedCourses(): Promise<Course[]> {
+  return listCourses().then((page) => page.results);
+}
+
 export function listCategories(): Promise<Category[]> {
   return apiFetch<Category[]>("/categories/", { cache: "no-store" });
 }

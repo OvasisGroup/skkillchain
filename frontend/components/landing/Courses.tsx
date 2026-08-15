@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { CourseCard } from "@/components/CourseCard";
-import { listCourses } from "@/lib/api/courses";
+import { listFeaturedCourses } from "@/lib/api/courses";
 import { Reveal } from "@/components/animation/Reveal";
 
 const FEATURED_COUNT = 3;
@@ -10,9 +10,7 @@ export async function Courses() {
   // Landing content, not a data page — if the API is unreachable or nobody
   // has published a course yet, skip the section entirely rather than show
   // an empty/error block on the homepage.
-  const courses = await listCourses()
-    .then((page) => page.results)
-    .catch(() => []);
+  const courses = await listFeaturedCourses().catch(() => []);
   if (courses.length === 0) return null;
 
   return (
