@@ -24,7 +24,7 @@ export async function Courses() {
             Courses to get you building
           </h2>
           <p className="mt-4 text-lg text-foreground/60">
-            A sample of what's live right now — browse the full catalog for everything else.
+            A sample of what&apos;s live right now — browse the full catalog for everything else.
           </p>
         </Reveal>
 

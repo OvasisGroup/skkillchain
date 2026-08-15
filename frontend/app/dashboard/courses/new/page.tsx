@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authInputClass, authLabelClass } from "@/components/AuthCard";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -128,7 +128,14 @@ export default function NewAdminCoursePage() {
   const [prerequisites, setPrerequisites] = useState<string[]>([]);
   const [learningObjectives, setLearningObjectives] = useState<string[]>([]);
   const [coverImage, setCoverImage] = useState<File | null>(null);
-  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
+  // Derived from coverImage rather than its own state+effect pair — the
+  // URL itself needs no setState, just a revoke on cleanup, so useMemo
+  // (recomputed) + a cleanup-only effect (no setState in its body) is all
+  // this needs.
+  const coverImagePreview = useMemo(
+    () => (coverImage ? URL.createObjectURL(coverImage) : null),
+    [coverImage]
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -139,14 +146,10 @@ export default function NewAdminCoursePage() {
   }, []);
 
   useEffect(() => {
-    if (!coverImage) {
-      setCoverImagePreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(coverImage);
-    setCoverImagePreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [coverImage]);
+    return () => {
+      if (coverImagePreview) URL.revokeObjectURL(coverImagePreview);
+    };
+  }, [coverImagePreview]);
 
   function toggleTag(id: string) {
     setTagIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));

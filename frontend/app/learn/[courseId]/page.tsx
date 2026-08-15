@@ -33,7 +33,6 @@ export default function LearnCoursePage() {
   const { accessToken, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [courseTitle, setCourseTitle] = useState<string | null>(null);
-  const [enrollmentId, setEnrollmentId] = useState<string | null>(null);
   const [sections, setSections] = useState<CurriculumSection[] | null>(null);
   const [progress, setProgress] = useState<EnrollmentProgress | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
@@ -61,7 +60,6 @@ export default function LearnCoursePage() {
         return;
       }
       if (cancelled) return;
-      setEnrollmentId(enrollment.id);
       setCourseTitle(enrollment.course.title);
 
       const [curriculum, progressData] = await Promise.all([
@@ -86,9 +84,13 @@ export default function LearnCoursePage() {
 
   useEffect(() => {
     if (!accessToken || !selectedLessonId) return;
+    // content/contentError are reset in the sidebar's onSelect handler
+    // above (not synchronously here), so switching lessons doesn't
+    // briefly flash the previous lesson's content while this fetch runs.
+    // The other setSelectedLessonId call site (auto-selecting the first
+    // lesson on load) needs no reset — content/contentError are still at
+    // their initial null there.
     let cancelled = false;
-    setContent(null);
-    setContentError(null);
 
     getLessonContent(selectedLessonId, accessToken)
       .then((data) => {
@@ -209,7 +211,11 @@ export default function LearnCoursePage() {
                     lesson={lesson}
                     isSelected={lesson.id === selectedLessonId}
                     percentComplete={progressByLesson[lesson.id]?.percent_complete ?? 0}
-                    onSelect={() => setSelectedLessonId(lesson.id)}
+                    onSelect={() => {
+                      setSelectedLessonId(lesson.id);
+                      setContent(null);
+                      setContentError(null);
+                    }}
                   />
                 ))}
               </ul>
