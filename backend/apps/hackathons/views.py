@@ -20,7 +20,6 @@ from .models import (
     Hackathon,
     HackathonGalleryImage,
     HackathonRegistration,
-    HackathonSubmission,
     HackathonWinner,
 )
 from .serializers import (
@@ -38,9 +37,7 @@ from .serializers import (
 
 _REGISTERED_STATUS = HackathonRegistration.STATUS_REGISTERED
 
-_WITH_REGISTERED_COUNT = Count(
-    "registrations", filter=Q(registrations__status=_REGISTERED_STATUS)
-)
+_WITH_REGISTERED_COUNT = Count("registrations", filter=Q(registrations__status=_REGISTERED_STATUS))
 
 
 def _owned_hackathon_or_403(hackathon_id, user):
@@ -221,9 +218,11 @@ class HackathonRegisterView(APIView):
         description="Withdraws the current user's registration from a hackathon.",
     )
     def delete(self, request, id):
-        registration = HackathonRegistration.objects.filter(
-            hackathon_id=id, participant=request.user
-        ).exclude(status=HackathonRegistration.STATUS_WITHDRAWN).first()
+        registration = (
+            HackathonRegistration.objects.filter(hackathon_id=id, participant=request.user)
+            .exclude(status=HackathonRegistration.STATUS_WITHDRAWN)
+            .first()
+        )
         if registration is None:
             raise NotFound("Not registered for this hackathon.")
         registration.status = HackathonRegistration.STATUS_WITHDRAWN
@@ -292,7 +291,12 @@ class HackathonSubmissionView(APIView):
             "Registration",
             value={
                 "id": "d4e5f6a7-...",
-                "hackathon": {**{k: _HACKATHON_EXAMPLE[k] for k in ("id", "title", "slug", "starts_at", "ends_at", "status")}},
+                "hackathon": {
+                    **{
+                        k: _HACKATHON_EXAMPLE[k]
+                        for k in ("id", "title", "slug", "starts_at", "ends_at", "status")
+                    }
+                },
                 "team_name": "Byte Me",
                 "motivation": "We want to prototype an AI tutor.",
                 "status": "registered",
@@ -309,9 +313,8 @@ class MyHackathonRegistrationsView(generics.ListAPIView):
     pagination_class = RegisteredAtCursorPagination
 
     def get_queryset(self):
-        return (
-            HackathonRegistration.objects.filter(participant=self.request.user)
-            .select_related("hackathon", "submission")
+        return HackathonRegistration.objects.filter(participant=self.request.user).select_related(
+            "hackathon", "submission"
         )
 
 
@@ -467,7 +470,9 @@ class HackathonWinnerCreateView(APIView):
         if submission is None:
             raise ValidationError("This registration has no submission to award.")
 
-        if HackathonWinner.objects.filter(hackathon=hackathon, placement=data["placement"]).exists():
+        if HackathonWinner.objects.filter(
+            hackathon=hackathon, placement=data["placement"]
+        ).exists():
             raise ValidationError(f"Placement {data['placement']} is already taken.")
         if HackathonWinner.objects.filter(hackathon=hackathon, submission=submission).exists():
             raise ValidationError("This submission has already been declared a winner.")
@@ -602,7 +607,9 @@ class AdminHackathonWinnerCreateView(APIView):
         if submission is None:
             raise ValidationError("This registration has no submission to award.")
 
-        if HackathonWinner.objects.filter(hackathon=hackathon, placement=data["placement"]).exists():
+        if HackathonWinner.objects.filter(
+            hackathon=hackathon, placement=data["placement"]
+        ).exists():
             raise ValidationError(f"Placement {data['placement']} is already taken.")
         if HackathonWinner.objects.filter(hackathon=hackathon, submission=submission).exists():
             raise ValidationError("This submission has already been declared a winner.")

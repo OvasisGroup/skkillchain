@@ -4,6 +4,8 @@ questions/answers), one Assignment, and — for a handful of sections — one
 judged CodingExercise with test cases.
 """
 
+from datetime import timedelta
+
 from apps.assessments.models import (
     Answer,
     Assignment,
@@ -65,7 +67,7 @@ def build_assignments(course: Course) -> list[Assignment]:
     assignments = []
     for assignment_spec in cb.ASSIGNMENTS:
         due_policy = {
-            "due_at": (timezone.now() + timezone.timedelta(days=assignment_spec.due_in_days)).isoformat(),
+            "due_at": (timezone.now() + timedelta(days=assignment_spec.due_in_days)).isoformat(),
             "allow_late": assignment_spec.allow_late,
         }
         assignment, created = Assignment.objects.get_or_create(
@@ -74,12 +76,16 @@ def build_assignments(course: Course) -> list[Assignment]:
             defaults={"instructions": assignment_spec.instructions, "due_policy": due_policy},
         )
         if not created:
-            Assignment.objects.filter(pk=assignment.pk).update(instructions=assignment_spec.instructions)
+            Assignment.objects.filter(pk=assignment.pk).update(
+                instructions=assignment_spec.instructions
+            )
         assignments.append(assignment)
     return assignments
 
 
-def build_coding_exercises(course: Course, sections_by_title: dict[str, dict]) -> list[CodingExercise]:
+def build_coding_exercises(
+    course: Course, sections_by_title: dict[str, dict]
+) -> list[CodingExercise]:
     exercises = []
     for exercise_spec in cb.CODING_EXERCISES:
         section_spec = cb.SECTIONS[exercise_spec.section_index]

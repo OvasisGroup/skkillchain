@@ -49,9 +49,13 @@ class Command(BaseCommand):
         activity.build_progress(
             course, sections_by_title, enrollment_by_student, completed_students, active_students
         )
-        activity.build_bookmarks_and_notes(sections_by_title, active_students, enrollment_by_student)
+        activity.build_bookmarks_and_notes(
+            sections_by_title, active_students, enrollment_by_student
+        )
 
-        self.stdout.write("Seeding quiz attempts, assignment submissions, and coding submissions...")
+        self.stdout.write(
+            "Seeding quiz attempts, assignment submissions, and coding submissions..."
+        )
         activity.build_quiz_attempts(quizzes, completed_students, enrollment_by_student)
         activity.build_assignment_submissions(
             course_assignments, completed_students, enrollment_by_student, instructor
@@ -66,16 +70,18 @@ class Command(BaseCommand):
         activity.build_wishlist(course, active_students)
 
         self.stdout.write(self.style.SUCCESS("\nDone. Course seeded successfully:"))
-        self.stdout.write(f"  Course:            {course.title}  ({course.status}, {course.get_difficulty_display()})")
+        self.stdout.write(
+            f"  Course:            {course.title}  ({course.status}, {course.get_difficulty_display()})"
+        )
         self.stdout.write(f"  Sections:          {len(sections_by_title)}")
-        self.stdout.write(f"  Lessons:           {lesson_count}  (~{total_seconds / 3600:.1f} hours)")
+        self.stdout.write(
+            f"  Lessons:           {lesson_count}  (~{total_seconds / 3600:.1f} hours)"
+        )
         self.stdout.write(f"  Quizzes:           {len(quizzes)}")
         self.stdout.write(f"  Assignments:       {len(course_assignments)}")
         self.stdout.write(f"  Coding exercises:  {len(coding_exercises)}")
         self.stdout.write(f"  Students:          {len(students)}")
         self.stdout.write(f"  Completed:         {len(completed_students)}")
         self.stdout.write(f"  Active enrollees:  {len(active_students)}")
-        self.stdout.write(
-            f"\n  Dev login for any seeded account: <email> / {people.SEED_PASSWORD}"
-        )
+        self.stdout.write(f"\n  Dev login for any seeded account: <email> / {people.SEED_PASSWORD}")
         self.stdout.write(f"  Instructor email:  {people.INSTRUCTOR_EMAIL}")

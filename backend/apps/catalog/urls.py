@@ -34,7 +34,9 @@ urlpatterns = [
     ),
     path("admin/courses/", views.AdminCourseListView.as_view(), name="admin-course-list-create"),
     path(
-        "admin/courses/<uuid:id>/", views.AdminCourseDetailView.as_view(), name="admin-course-detail"
+        "admin/courses/<uuid:id>/",
+        views.AdminCourseDetailView.as_view(),
+        name="admin-course-detail",
     ),
     path(
         "admin/courses/<uuid:id>/notify/",

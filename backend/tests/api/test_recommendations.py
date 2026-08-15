@@ -46,7 +46,7 @@ class TestRecommendedCourses:
     def test_excludes_already_enrolled_courses(self, student_client, student, instructor, category):
         enrolled_course = _published_course(instructor, "Enrolled Course", category=category)
         Enrollment.objects.create(student=student, course=enrolled_course)
-        other_course = _published_course(instructor, "Other In Same Category", category=category)
+        _published_course(instructor, "Other In Same Category", category=category)
 
         response = student_client.get("/api/v1/ai/recommendations/courses/")
 
@@ -70,10 +70,10 @@ class TestLearningPaths:
         anchor = _published_course(instructor, "Anchor Course", category=category)
         Enrollment.objects.create(student=student, course=anchor)
 
-        advanced = _published_course(
+        _published_course(
             instructor, "Advanced One", difficulty=Course.DIFFICULTY_ADVANCED, category=category
         )
-        beginner = _published_course(
+        _published_course(
             instructor, "Beginner One", difficulty=Course.DIFFICULTY_BEGINNER, category=category
         )
 

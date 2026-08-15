@@ -28,6 +28,7 @@ jobs:
       SECRET_KEY: lint-only
       DATABASE_URL: postgres://x:x@localhost/x
       REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -90,6 +91,13 @@ jobs:
       SECRET_KEY: ci-test-secret
       DATABASE_URL: postgres://skillchain:skillchain@localhost:5432/skillchain
       REDIS_URL: redis://localhost:6379/0
+      # No rabbitmq service in this job (production's real broker, per
+      # .env.example) — tests never dispatch through a live Celery
+      # connection (see tests/api/test_instructor_authoring.py's
+      # monkeypatch-the-task pattern), so pointing this at the redis
+      # service already running here just needs to be a valid,
+      # reachable-if-asked broker URL, not the real one.
+      CELERY_BROKER_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -53,7 +53,7 @@ dev = [
     # `black .` reformat with no behavior change.
     "black>=26.3,<27.0",
     "mypy>=1.11,<1.12",
-    "django-stubs>=5.0,<5.1",
+    "django-stubs>=5.2,<5.3",
     # >=9.0 for PYSEC-2026-1845 (pip-audit flagged 8.4.2).
     "pytest>=9.0,<10.0",
     "pytest-django>=4.9,<5.0",

@@ -23,7 +23,10 @@ def get_valid_access_token(account: ConferencingAccount) -> str:
     ~1 hour) and were previously used as-is forever, causing every meeting
     action to fail with a 401 once that hour passed.
     """
-    if account.token_expires_at is None or account.token_expires_at > timezone.now() + _EXPIRY_BUFFER:
+    if (
+        account.token_expires_at is None
+        or account.token_expires_at > timezone.now() + _EXPIRY_BUFFER
+    ):
         return decrypt(account.access_token_encrypted)
 
     if not account.refresh_token_encrypted:
@@ -42,6 +45,8 @@ def get_valid_access_token(account: ConferencingAccount) -> str:
     if tokens.refresh_token:
         account.refresh_token_encrypted = encrypt(tokens.refresh_token)
     account.token_expires_at = timezone.now() + timedelta(seconds=tokens.expires_in)
-    account.save(update_fields=["access_token_encrypted", "refresh_token_encrypted", "token_expires_at"])
+    account.save(
+        update_fields=["access_token_encrypted", "refresh_token_encrypted", "token_expires_at"]
+    )
 
     return tokens.access_token

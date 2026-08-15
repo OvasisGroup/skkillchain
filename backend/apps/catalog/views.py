@@ -399,9 +399,7 @@ def _instructor_queryset():
                     "website_url": "",
                 },
                 "published_course_count": 3,
-                "categories": [
-                    {"id": "e1f2...", "name": "Programming", "slug": "programming"}
-                ],
+                "categories": [{"id": "e1f2...", "name": "Programming", "slug": "programming"}],
             },
             response_only=True,
         )
@@ -720,9 +718,13 @@ class CourseRejectView(APIView):
             OpenApiParameter("category", str, description="Filter by category slug."),
             OpenApiParameter("language", str, description="Filter by ISO language code."),
             OpenApiParameter(
-                "difficulty", str, description="Filter by difficulty: beginner/intermediate/advanced."
+                "difficulty",
+                str,
+                description="Filter by difficulty: beginner/intermediate/advanced.",
             ),
-            OpenApiParameter("q", str, description="Case-insensitive search over title and summary."),
+            OpenApiParameter(
+                "q", str, description="Case-insensitive search over title and summary."
+            ),
         ],
         description="Lists every course platform-wide, any owner or status. Requires the "
         "courses.manage permission.",
@@ -825,7 +827,9 @@ class AdminCourseDetailView(generics.RetrieveUpdateAPIView):
         # would then read as "clear them" on the next save since the admin
         # edit form always resubmits every field. CourseDetailSerializer's
         # full read shape avoids that trap.
-        return CourseDetailSerializer if self.request.method == "GET" else AdminCourseWriteSerializer
+        return (
+            CourseDetailSerializer if self.request.method == "GET" else AdminCourseWriteSerializer
+        )
 
     def perform_update(self, serializer):
         course = self.get_object()
@@ -867,7 +871,10 @@ class AdminCourseNotifyView(APIView):
         subject = serializer.validated_data["subject"]
         message = serializer.validated_data["message"]
 
-        if audience in (CourseNotifySerializer.AUDIENCE_INSTRUCTOR, CourseNotifySerializer.AUDIENCE_BOTH):
+        if audience in (
+            CourseNotifySerializer.AUDIENCE_INSTRUCTOR,
+            CourseNotifySerializer.AUDIENCE_BOTH,
+        ):
             from apps.notifications.services import notify
 
             notify(
@@ -877,7 +884,10 @@ class AdminCourseNotifyView(APIView):
                 title=subject,
                 body=message,
             )
-        if audience in (CourseNotifySerializer.AUDIENCE_STUDENTS, CourseNotifySerializer.AUDIENCE_BOTH):
+        if audience in (
+            CourseNotifySerializer.AUDIENCE_STUDENTS,
+            CourseNotifySerializer.AUDIENCE_BOTH,
+        ):
             from .tasks import notify_course_recipients
 
             notify_course_recipients.delay(str(course.id), subject, message)

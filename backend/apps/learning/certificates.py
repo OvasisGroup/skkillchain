@@ -3,7 +3,7 @@ import io
 import qrcode
 from django.core.files.base import ContentFile
 from reportlab.lib.colors import HexColor
-from reportlab.lib.pagesizes import landscape, A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas

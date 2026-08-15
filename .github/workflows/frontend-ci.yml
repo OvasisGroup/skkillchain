@@ -20,7 +20,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # `uses:` steps don't respect the `defaults.run.working-directory`
+      # above (that only applies to `run:` steps), so without pointing this
+      # at frontend/package.json explicitly, action-setup looks for a
+      # packageManager field at the repo root — which doesn't exist — and
+      # fails with "No pnpm version is specified." (same in the other two
+      # jobs below).
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -34,6 +42,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -49,6 +59,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

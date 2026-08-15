@@ -15,6 +15,7 @@ the command is safe and additive rather than duplicating rows.
 
 import random
 import uuid
+from datetime import timedelta
 
 from django.utils import timezone
 
@@ -93,8 +94,7 @@ def build_enrollments(
 
     new_enrollments: list[Enrollment] = []
     enrollment_by_student: dict[uuid.UUID, Enrollment] = {
-        e.student_id: e
-        for e in Enrollment.objects.filter(course=course).select_related(None)
+        e.student_id: e for e in Enrollment.objects.filter(course=course).select_related(None)
     }
 
     for student in completed_students:
@@ -102,8 +102,8 @@ def build_enrollments(
             continue
         days_since_enrollment = rng.randint(45, 270)
         duration_to_complete = rng.randint(10, min(75, days_since_enrollment - 1))
-        enrolled_at = now - timezone.timedelta(days=days_since_enrollment)
-        completed_at = enrolled_at + timezone.timedelta(days=duration_to_complete)
+        enrolled_at = now - timedelta(days=days_since_enrollment)
+        completed_at = enrolled_at + timedelta(days=duration_to_complete)
 
         enrollment = Enrollment(
             course=course,
@@ -121,7 +121,7 @@ def build_enrollments(
     for student in active_students:
         if student.id in existing_student_ids:
             continue
-        enrolled_at = now - timezone.timedelta(days=rng.randint(3, 120))
+        enrolled_at = now - timedelta(days=rng.randint(3, 120))
         enrollment = Enrollment(
             course=course,
             student=student,
@@ -180,7 +180,7 @@ def build_progress(
         enrollment = enrollment_by_student[student.id]
         watched_count = rng.randint(10, min(60, len(all_lessons)))
         watched_lessons = all_lessons[:watched_count]
-        last_viewed = min(enrollment.enrolled_at + timezone.timedelta(days=rng.randint(1, 30)), now)
+        last_viewed = min(enrollment.enrolled_at + timedelta(days=rng.randint(1, 30)), now)
 
         for position, lesson in enumerate(watched_lessons):
             if (enrollment.id, lesson.id) in existing_pairs:
@@ -230,7 +230,7 @@ def build_bookmarks_and_notes(
         for lesson in rng.sample(all_lessons, sample_size):
             timestamp = rng.randint(30, max(31, lesson.duration_seconds - 30))
             created_at = min(
-                enrollment.enrolled_at + timezone.timedelta(days=rng.randint(1, 20)), timezone.now()
+                enrollment.enrolled_at + timedelta(days=rng.randint(1, 20)), timezone.now()
             )
 
             if (student.id, lesson.id) not in existing_bookmark_keys:
@@ -303,10 +303,10 @@ def build_quiz_attempts(
             for question in shuffled[:correct_count]:
                 correct_flags[question.id] = True
 
-            started_at = enrollment.enrolled_at + timezone.timedelta(
+            started_at = enrollment.enrolled_at + timedelta(
                 days=rng.randint(0, max(0, (window_end - enrollment.enrolled_at).days))
             )
-            submitted_at = started_at + timezone.timedelta(minutes=rng.randint(4, 25))
+            submitted_at = started_at + timedelta(minutes=rng.randint(4, 25))
 
             attempt = QuizAttempt(
                 quiz=quiz,
@@ -370,9 +370,7 @@ def build_assignment_submissions(
         "Good attempt at the core requirement. Double-check naming conventions going forward.",
     ]
 
-    existing_pairs = set(
-        AssignmentSubmission.objects.values_list("assignment_id", "student_id")
-    )
+    existing_pairs = set(AssignmentSubmission.objects.values_list("assignment_id", "student_id"))
 
     new_submissions: list[AssignmentSubmission] = []
     for student in completed_students:
@@ -383,10 +381,10 @@ def build_assignment_submissions(
         for index, assignment in enumerate(assignments):
             if (assignment.id, student.id) in existing_pairs:
                 continue
-            submitted_at = enrollment.enrolled_at + timezone.timedelta(
+            submitted_at = enrollment.enrolled_at + timedelta(
                 days=rng.randint(1, max(1, (window_end - enrollment.enrolled_at).days))
             )
-            graded_at = submitted_at + timezone.timedelta(days=rng.randint(1, 3))
+            graded_at = submitted_at + timedelta(days=rng.randint(1, 3))
             grade = float(rng.randint(72, 100))
 
             new_submissions.append(
@@ -429,7 +427,7 @@ def build_coding_exercise_submissions(
         for exercise in exercises:
             if (exercise.id, student.id) in existing_pairs:
                 continue
-            submitted_at = enrollment.enrolled_at + timezone.timedelta(
+            submitted_at = enrollment.enrolled_at + timedelta(
                 days=rng.randint(1, max(1, (window_end - enrollment.enrolled_at).days))
             )
             test_case_count = exercise.test_cases.count() or 2
@@ -452,7 +450,9 @@ def build_coding_exercise_submissions(
             )
 
     for chunk_start in range(0, len(new_submissions), 2000):
-        CodingExerciseSubmission.objects.bulk_create(new_submissions[chunk_start : chunk_start + 2000])
+        CodingExerciseSubmission.objects.bulk_create(
+            new_submissions[chunk_start : chunk_start + 2000]
+        )
 
 
 def build_reviews(
@@ -464,7 +464,9 @@ def build_reviews(
     # N students without a review yet" — the latter keeps advancing through
     # completed_students on every rerun, adding REVIEW_COUNT more reviews
     # each time instead of converging on a stable total of REVIEW_COUNT.
-    existing_reviewer_ids = set(Review.objects.filter(course=course).values_list("user_id", flat=True))
+    existing_reviewer_ids = set(
+        Review.objects.filter(course=course).values_list("user_id", flat=True)
+    )
     reviewers = completed_students[:REVIEW_COUNT]
 
     new_reviews: list[Review] = []
@@ -472,7 +474,7 @@ def build_reviews(
         if student.id in existing_reviewer_ids:
             continue
         enrollment = enrollment_by_student[student.id]
-        created_at = (enrollment.completed_at or timezone.now()) + timezone.timedelta(days=1)
+        created_at = (enrollment.completed_at or timezone.now()) + timedelta(days=1)
         new_reviews.append(
             Review(
                 course=course,
@@ -501,7 +503,7 @@ def build_certificates(
         if enrollment.id in existing_enrollment_ids:
             continue
         certificate_uid = f"CERT-{uuid.uuid4().hex[:16].upper()}"
-        issued_at = (enrollment.completed_at or timezone.now()) + timezone.timedelta(days=1)
+        issued_at = (enrollment.completed_at or timezone.now()) + timedelta(days=1)
         new_certificates.append(
             Certificate(
                 enrollment=enrollment,

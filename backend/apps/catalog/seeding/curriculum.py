@@ -167,7 +167,11 @@ def build_sections_and_lessons(course: Course) -> dict[str, dict]:
             if lesson_spec.kind == "video":
                 video_lessons.append(lesson)
 
-        result[section_spec.title] = {"section": section, "lessons": lessons, "video_lessons": video_lessons}
+        result[section_spec.title] = {
+            "section": section,
+            "lessons": lessons,
+            "video_lessons": video_lessons,
+        }
 
     _normalize_total_duration(result)
     return result
@@ -178,11 +182,13 @@ def _normalize_total_duration(sections_by_title: dict[str, dict]) -> None:
     total falls short of the advertised 80+ hour course length. Never scales
     down — a random draw landing above target is left alone."""
     all_video_lessons = [
-        lesson
-        for entry in sections_by_title.values()
-        for lesson in entry["video_lessons"]
+        lesson for entry in sections_by_title.values() for lesson in entry["video_lessons"]
     ]
-    total_seconds = sum(lesson.duration_seconds for entry in sections_by_title.values() for lesson in entry["lessons"])
+    total_seconds = sum(
+        lesson.duration_seconds
+        for entry in sections_by_title.values()
+        for lesson in entry["lessons"]
+    )
     if total_seconds >= TARGET_TOTAL_SECONDS or not all_video_lessons:
         return
 

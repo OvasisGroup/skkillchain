@@ -371,7 +371,7 @@ paths:
           schema: { type: string }
       responses:
         '200': { description: Instructor detail }
-        '404': { description: No such instructor, or they have no published courses }
+        '404': { description: "No such instructor, or they have no published courses" }
   # NOTE: a dedicated faceted /search/courses endpoint (text/rating/price
   # filters, sort_by) was planned but never built — GET /courses only
   # supports category/language/difficulty filters. GET /ai/search below is
@@ -1458,6 +1458,59 @@ paths:
           schema: { type: string }
       responses:
         '200': { description: Instructor approved }
+  /admin/courses:
+    get:
+      tags: [Admin]
+      summary: List every course platform-wide, any owner or status
+      responses:
+        '200': { description: Course list }
+    post:
+      tags: [Admin]
+      summary: Create a draft course on behalf of a picked instructor
+      responses:
+        '201': { description: Course created }
+  /admin/courses/{courseId}:
+    get:
+      tags: [Admin]
+      summary: Get any course by id, any owner or status
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Course detail }
+    patch:
+      tags: [Admin]
+      summary: Update any course's record fields (notifies enrolled students if published)
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Course updated }
+    put:
+      tags: [Admin]
+      summary: Replace any course's record fields (notifies enrolled students if published)
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Course updated }
+  /admin/courses/{courseId}/notify:
+    post:
+      tags: [Admin]
+      summary: Message a course's instructor and/or its enrolled students (in-app + email)
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Notification sent }
   /admin/courses/pending-review:
     get:
       tags: [Admin]

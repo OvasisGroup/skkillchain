@@ -71,7 +71,14 @@ class HackathonWinnerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HackathonWinner
-        fields = ["id", "placement", "prize_description", "submission", "participant", "announced_at"]
+        fields = [
+            "id",
+            "placement",
+            "prize_description",
+            "submission",
+            "participant",
+            "announced_at",
+        ]
 
     @extend_schema_field(ParticipantSummarySerializer)
     def get_participant(self, winner):
@@ -90,10 +97,20 @@ class HackathonGalleryImageSerializer(serializers.ModelSerializer):
         # Mirrors HackathonGalleryImage.clean() — enforced here too since
         # partial (PATCH-style) updates and this endpoint's create path
         # don't otherwise call full_clean().
-        has_image = bool(attrs.get("image")) if "image" in attrs else bool(self.instance and self.instance.image)
-        has_video = bool(attrs.get("video_url")) if "video_url" in attrs else bool(self.instance and self.instance.video_url)
+        has_image = (
+            bool(attrs.get("image"))
+            if "image" in attrs
+            else bool(self.instance and self.instance.image)
+        )
+        has_video = (
+            bool(attrs.get("video_url"))
+            if "video_url" in attrs
+            else bool(self.instance and self.instance.video_url)
+        )
         if has_image == has_video:
-            raise serializers.ValidationError("Provide exactly one of image or video_url, not both.")
+            raise serializers.ValidationError(
+                "Provide exactly one of image or video_url, not both."
+            )
         return attrs
 
 
@@ -140,9 +157,7 @@ class HackathonDetailSerializer(serializers.ModelSerializer):
     @extend_schema_field(HackathonWinnerSerializer(many=True))
     def get_winners(self, hackathon):
         return HackathonWinnerSerializer(
-            hackathon.winners.select_related(
-                "submission__registration__participant__profile"
-            ),
+            hackathon.winners.select_related("submission__registration__participant__profile"),
             many=True,
         ).data
 

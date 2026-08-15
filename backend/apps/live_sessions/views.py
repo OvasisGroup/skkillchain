@@ -18,7 +18,6 @@ from . import oauth_state
 from .conferencing.base import ConferencingProviderError
 from .conferencing.registry import get_provider
 from .models import ConferencingAccount, LiveSession, LiveSessionRegistration
-from .services import get_valid_access_token
 from .serializers import (
     ConferencingAccountSerializer,
     ConnectResponseSerializer,
@@ -29,6 +28,7 @@ from .serializers import (
     RecordingSerializer,
     RegistrationSerializer,
 )
+from .services import get_valid_access_token
 
 
 def _owned_course_or_403(course_id, user):

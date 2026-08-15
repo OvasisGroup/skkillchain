@@ -41,7 +41,7 @@ class TestCourseListView:
 
     def test_filters_by_category(self, api_client, instructor):
         cat = Category.objects.create(name="Data Science", slug="data-science")
-        matching = _published_course(instructor, title="ML 101", category=cat)
+        _published_course(instructor, title="ML 101", category=cat)
         _published_course(instructor, title="Unrelated")
 
         response = api_client.get("/api/v1/courses/?category=data-science")
@@ -336,9 +336,7 @@ class TestAdminCourseManagement:
 
         assert response.status_code == 403
 
-    def test_lists_every_course_regardless_of_owner_or_status(
-        self, admin_client, instructor
-    ):
+    def test_lists_every_course_regardless_of_owner_or_status(self, admin_client, instructor):
         Course.objects.create(owner=instructor, title="Someone's Draft")
         _published_course(instructor, title="Someone's Published Course")
 
@@ -414,7 +412,9 @@ class TestAdminCourseManagement:
         course.refresh_from_db()
         assert course.summary == "Admin edit"
 
-    def test_get_includes_prerequisites_and_nested_category(self, admin_client, instructor, category):
+    def test_get_includes_prerequisites_and_nested_category(
+        self, admin_client, instructor, category
+    ):
         from apps.catalog.models import CoursePrerequisite
 
         course = Course.objects.create(owner=instructor, title="With Prereqs", category=category)
@@ -470,9 +470,7 @@ class TestAdminCourseManagement:
         course = _published_course(instructor, title="Live Course")
         student = django_user_model.objects.create_user(email="student@example.com", password="x")
         Enrollment.objects.create(student=student, course=course)
-        monkeypatch.setattr(
-            tasks.notify_course_recipients, "delay", tasks.notify_course_recipients
-        )
+        monkeypatch.setattr(tasks.notify_course_recipients, "delay", tasks.notify_course_recipients)
 
         response = admin_client.post(
             f"/api/v1/admin/courses/{course.id}/notify/",

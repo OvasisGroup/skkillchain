@@ -130,7 +130,9 @@ class Hackathon(TimeStampedModel):
 
     def publish(self):
         if self.status != self.STATUS_DRAFT:
-            raise InvalidHackathonTransition(f"Cannot publish a hackathon from status '{self.status}'")
+            raise InvalidHackathonTransition(
+                f"Cannot publish a hackathon from status '{self.status}'"
+            )
         self.status = self.STATUS_PUBLISHED
         self.published_at = timezone.now()
         self.save(update_fields=["status", "published_at", "updated_at"])

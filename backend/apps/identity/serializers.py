@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
@@ -111,7 +113,7 @@ class MeSerializer(serializers.ModelSerializer):
         # auto-generated UniqueValidator, so a duplicate email gets the same
         # message (and normalize_email() casing) as RegisterSerializer rather
         # than DRF's generic "user with this email already exists.".
-        extra_kwargs = {"email": {"validators": []}}
+        extra_kwargs: dict[str, dict[str, Any]] = {"email": {"validators": []}}
 
     def validate_email(self, value):
         value = User.objects.normalize_email(value)

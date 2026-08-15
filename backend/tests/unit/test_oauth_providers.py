@@ -93,7 +93,9 @@ class TestFacebookOAuthProvider:
         settings.FACEBOOK_APP_SECRET = "app-secret"
         monkeypatch.setattr(
             "apps.identity.oauth.facebook.requests.get",
-            self._fake_get(me_response=self._me_response(200, {"id": "fb-user-1", "email": "fb@example.com"})),
+            self._fake_get(
+                me_response=self._me_response(200, {"id": "fb-user-1", "email": "fb@example.com"})
+            ),
         )
 
         info = FacebookOAuthProvider().verify("fake-token")
@@ -105,9 +107,7 @@ class TestFacebookOAuthProvider:
     def test_verify_rejects_when_unconfigured(self, settings, monkeypatch):
         settings.FACEBOOK_APP_ID = ""
         settings.FACEBOOK_APP_SECRET = ""
-        monkeypatch.setattr(
-            "apps.identity.oauth.facebook.requests.get", self._fake_get()
-        )
+        monkeypatch.setattr("apps.identity.oauth.facebook.requests.get", self._fake_get())
 
         with pytest.raises(OAuthVerificationError):
             FacebookOAuthProvider().verify("fake-token")

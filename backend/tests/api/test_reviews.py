@@ -162,7 +162,9 @@ class TestCourseDiscussions:
             course=course, body="question about lesson 2"
         ).exists()
 
-    def test_list_includes_poster_email(self, api_client, student_client, student, course, active_enrollment):
+    def test_list_includes_poster_email(
+        self, api_client, student_client, student, course, active_enrollment
+    ):
         student_client.post(
             f"/api/v1/courses/{course.id}/discussions/", {"body": "hi everyone"}, format="json"
         )

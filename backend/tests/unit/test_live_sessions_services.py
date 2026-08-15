@@ -53,7 +53,8 @@ class TestGetValidAccessToken:
         monkeypatch.setattr(
             "apps.live_sessions.conferencing.zoom.requests.post",
             lambda *a, **k: _FakeResponse(
-                200, {"access_token": "fresh-token", "refresh_token": "rotated-rt", "expires_in": 3600}
+                200,
+                {"access_token": "fresh-token", "refresh_token": "rotated-rt", "expires_in": 3600},
             ),
         )
 
@@ -65,7 +66,9 @@ class TestGetValidAccessToken:
         assert decrypt(account.refresh_token_encrypted) == "rotated-rt"
         assert account.token_expires_at > timezone.now() + timedelta(minutes=59)
 
-    def test_refresh_failure_raises_clear_error_and_leaves_account_untouched(self, user, monkeypatch):
+    def test_refresh_failure_raises_clear_error_and_leaves_account_untouched(
+        self, user, monkeypatch
+    ):
         account = ConferencingAccount.objects.create(
             user=user,
             provider=ConferencingAccount.PROVIDER_GOOGLE_MEET,

@@ -4,13 +4,13 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
+from apps.hackathons.models import Hackathon, HackathonRegistration, HackathonSubmission
+
 # Smallest possible valid PNG (1x1 transparent pixel) — real image bytes are
 # required since ImageField validation actually decodes the file via Pillow.
 _ONE_PIXEL_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 )
-
-from apps.hackathons.models import Hackathon, HackathonRegistration, HackathonSubmission
 
 pytestmark = pytest.mark.django_db
 
@@ -222,7 +222,9 @@ class TestHackathonRegisterView:
         _registration(hackathon, student)
         api_client.force_authenticate(user=student)
 
-        response = api_client.post(f"/api/v1/hackathons/{hackathon.id}/register/", {}, format="json")
+        response = api_client.post(
+            f"/api/v1/hackathons/{hackathon.id}/register/", {}, format="json"
+        )
 
         assert response.status_code == 200
         assert HackathonRegistration.objects.filter(hackathon=hackathon).count() == 1
@@ -238,17 +240,23 @@ class TestHackathonRegisterView:
         )
         api_client.force_authenticate(user=student)
 
-        response = api_client.post(f"/api/v1/hackathons/{hackathon.id}/register/", {}, format="json")
+        response = api_client.post(
+            f"/api/v1/hackathons/{hackathon.id}/register/", {}, format="json"
+        )
 
         assert response.status_code == 400
 
-    def test_registration_blocked_when_at_capacity(self, api_client, organizer, student, django_user_model):
+    def test_registration_blocked_when_at_capacity(
+        self, api_client, organizer, student, django_user_model
+    ):
         hackathon = _hackathon(organizer, status=Hackathon.STATUS_PUBLISHED, capacity=1)
         _registration(hackathon, student)
         other = django_user_model.objects.create_user(email="other@example.com", password="x")
         api_client.force_authenticate(user=other)
 
-        response = api_client.post(f"/api/v1/hackathons/{hackathon.id}/register/", {}, format="json")
+        response = api_client.post(
+            f"/api/v1/hackathons/{hackathon.id}/register/", {}, format="json"
+        )
 
         assert response.status_code == 400
 
@@ -522,7 +530,11 @@ class TestHackathonWinnerCreateView:
 
         response = api_client.post(
             f"/api/v1/organizer/hackathons/{hackathon.id}/winners/",
-            {"registration_id": str(registration.id), "placement": 1, "prize_description": "$1,000"},
+            {
+                "registration_id": str(registration.id),
+                "placement": 1,
+                "prize_description": "$1,000",
+            },
             format="json",
         )
 
@@ -603,7 +615,9 @@ class TestAdminHackathonGalleryImageListCreateView:
     def _admin(self, django_user_model):
         from apps.authorization.models import Role, UserRole
 
-        admin = django_user_model.objects.create_user(email="gallery-admin@example.com", password="x")
+        admin = django_user_model.objects.create_user(
+            email="gallery-admin@example.com", password="x"
+        )
         UserRole.objects.create(user=admin, role=Role.objects.get(code="administrator"))
         return admin
 

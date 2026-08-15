@@ -480,9 +480,9 @@ class CertificateListView(generics.ListAPIView):
     pagination_class = IssuedAtCursorPagination
 
     def get_queryset(self):
-        return Certificate.objects.filter(
-            enrollment__student=self.request.user
-        ).select_related("enrollment__course", "enrollment__student__profile")
+        return Certificate.objects.filter(enrollment__student=self.request.user).select_related(
+            "enrollment__course", "enrollment__student__profile"
+        )
 
     def list(self, request, *args, **kwargs):
         # Self-heals certificates issued before pdf_file existed (or whose
