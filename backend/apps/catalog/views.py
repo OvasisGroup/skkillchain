@@ -83,7 +83,9 @@ class CourseListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        qs = Course.objects.filter(status=Course.STATUS_PUBLISHED).select_related("owner")
+        qs = Course.objects.filter(status=Course.STATUS_PUBLISHED).select_related(
+            "owner", "owner__profile"
+        )
         params = self.request.query_params
         if category := params.get("category"):
             qs = qs.filter(category__slug=category)
@@ -131,9 +133,9 @@ class CourseDetailView(generics.RetrieveAPIView):
     lookup_field = "id"
 
     def get_queryset(self):
-        return Course.objects.select_related("owner", "category").prefetch_related(
-            "tags", "prerequisites", "learning_objectives"
-        )
+        return Course.objects.select_related(
+            "owner", "owner__profile", "category"
+        ).prefetch_related("tags", "prerequisites", "learning_objectives")
 
     def get_object(self):
         course = super().get_object()
@@ -469,7 +471,9 @@ class InstructorCourseListCreateView(generics.ListCreateAPIView):
         return CourseWriteSerializer if self.request.method == "POST" else CourseListSerializer
 
     def get_queryset(self):
-        return Course.objects.filter(owner=self.request.user).select_related("owner")
+        return Course.objects.filter(owner=self.request.user).select_related(
+            "owner", "owner__profile"
+        )
 
     def perform_create(self, serializer):
         course = serializer.save()
@@ -617,7 +621,9 @@ class CoursesPendingReviewView(generics.ListAPIView):
     serializer_class = CourseListSerializer
     permission_classes = [HasPermission]
     required_permission = "courses.approve"
-    queryset = Course.objects.filter(status=Course.STATUS_SUBMITTED).select_related("owner")
+    queryset = Course.objects.filter(status=Course.STATUS_SUBMITTED).select_related(
+        "owner", "owner__profile"
+    )
 
 
 @extend_schema(
@@ -754,7 +760,7 @@ class AdminCourseListView(generics.ListCreateAPIView):
         return AdminCourseWriteSerializer if self.request.method == "POST" else CourseListSerializer
 
     def get_queryset(self):
-        qs = Course.objects.all().select_related("owner", "category")
+        qs = Course.objects.all().select_related("owner", "owner__profile", "category")
         params = self.request.query_params
         if status := params.get("status"):
             qs = qs.filter(status=status)
@@ -815,9 +821,9 @@ class AdminCourseDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [HasPermission]
     required_permission = "courses.manage"
     lookup_url_kwarg = "id"
-    queryset = Course.objects.select_related("owner", "category").prefetch_related(
-        "tags", "prerequisites", "learning_objectives"
-    )
+    queryset = Course.objects.select_related(
+        "owner", "owner__profile", "category"
+    ).prefetch_related("tags", "prerequisites", "learning_objectives")
 
     def get_serializer_class(self):
         # CourseWriteSerializer's prerequisites/learning_objectives are

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useCart } from "@/lib/cart/CartContext";
 import type { Course } from "@/lib/api/types";
+import { displayName } from "@/lib/displayName";
 import { useWishlist } from "@/lib/wishlist/WishlistContext";
 
 const DIFFICULTY_STYLES: Record<Course["difficulty"], string> = {
@@ -107,7 +108,7 @@ export function CourseCard({ course }: { course: Course }) {
         </p>
         <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
           <span className="text-xs text-foreground/50">
-            {course.instructor.email}
+            {displayName(course.instructor)}
           </span>
           <span className="text-sm font-semibold text-foreground">
             {course.price_amount === "0.00"

@@ -50,6 +50,11 @@ class TagWriteSerializer(serializers.ModelSerializer):
 class InstructorSummarySerializer(serializers.Serializer):
     id = serializers.UUIDField()
     email = serializers.EmailField()
+    # default="" (not required=False) — Profile is created for every user
+    # via a post_save signal, but defensively falls back to an empty
+    # string rather than erroring if a profile somehow doesn't exist yet.
+    first_name = serializers.CharField(source="profile.first_name", default="")
+    last_name = serializers.CharField(source="profile.last_name", default="")
 
 
 class CourseListSerializer(serializers.ModelSerializer):
