@@ -338,6 +338,12 @@ export interface Lesson {
   is_preview: boolean;
   // Only present for video/pdf lessons; absent for article/quiz/assignment.
   content_file?: string | null;
+  // Only meaningful for "video" — an alternative to content_file (YouTube,
+  // Vimeo, or any directly playable media URL). At most one of the two is
+  // set.
+  video_url?: string | null;
+  // Only meaningful for "article".
+  article_body?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -366,6 +372,8 @@ export interface LessonContent {
   lesson_type: LessonType;
   duration_seconds: number;
   content_file: string | null;
+  video_url: string | null;
+  article_body: string | null;
 }
 
 export interface ProgressUpdateInput {

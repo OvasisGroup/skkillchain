@@ -15,6 +15,8 @@ class LessonSerializer(serializers.ModelSerializer):
             "duration_seconds",
             "is_preview",
             "content_file",
+            "video_url",
+            "article_body",
         ]
 
 
@@ -54,5 +56,19 @@ class LessonWriteSerializer(serializers.ModelSerializer):
             "duration_seconds",
             "is_preview",
             "content_file",
+            "video_url",
+            "article_body",
         ]
         read_only_fields = ["id"]
+
+    def validate(self, attrs):
+        # PATCH sends a partial dict — only enforce this when both sides of
+        # the pair are actually present in this request, not against
+        # whatever the other one already holds in the DB (a plain
+        # content_file re-upload PATCH shouldn't fail just because a
+        # video_url was set in some earlier, unrelated request).
+        if attrs.get("content_file") and attrs.get("video_url"):
+            raise serializers.ValidationError(
+                "Set either content_file or video_url for a video lesson, not both."
+            )
+        return attrs

@@ -119,7 +119,15 @@ class CurriculumSectionSerializer(serializers.ModelSerializer):
 class LessonContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
-        fields = ["id", "title", "lesson_type", "duration_seconds", "content_file"]
+        fields = [
+            "id",
+            "title",
+            "lesson_type",
+            "duration_seconds",
+            "content_file",
+            "video_url",
+            "article_body",
+        ]
 
 
 class CertificateVerifyResponseSerializer(serializers.Serializer):

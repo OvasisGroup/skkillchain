@@ -12,6 +12,7 @@ import {
   listMyCourses,
   updateProgress,
 } from "@/lib/api/enrollments";
+import { toEmbeddableVideoUrl } from "@/lib/videoEmbed";
 import type {
   CurriculumLesson,
   CurriculumSection,
@@ -300,12 +301,15 @@ function LessonViewer({
   }, [lesson.id]);
 
   useEffect(() => {
-    if (lesson.lesson_type === "pdf" && content && !hasReportedView.current && percentComplete === 0) {
+    const marksViewedOnLoad = lesson.lesson_type === "pdf" || lesson.lesson_type === "article";
+    if (marksViewedOnLoad && content && !hasReportedView.current && percentComplete === 0) {
       hasReportedView.current = true;
       onProgress(10, 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson.lesson_type, content]);
+
+  const videoEmbedUrl = content?.video_url ? toEmbeddableVideoUrl(content.video_url) : null;
 
   function handleTimeUpdate() {
     const video = videoRef.current;
@@ -351,6 +355,29 @@ function LessonViewer({
         />
       )}
 
+      {content && lesson.lesson_type === "video" && !content.content_file && content.video_url && (
+        videoEmbedUrl ? (
+          <iframe
+            src={videoEmbedUrl}
+            title={lesson.title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="aspect-video w-full rounded-xl border border-border"
+          />
+        ) : (
+          // Not a recognized YouTube/Vimeo page — treat as a direct media
+          // file URL (e.g. an .mp4 hosted elsewhere) and play it natively.
+          <video
+            ref={videoRef}
+            src={content.video_url}
+            controls
+            className="aspect-video w-full rounded-xl border border-border bg-black"
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={handleEnded}
+          />
+        )
+      )}
+
       {content && lesson.lesson_type === "pdf" && content.content_file && (
         <iframe
           src={content.content_file}
@@ -359,16 +386,34 @@ function LessonViewer({
         />
       )}
 
-      {content && (lesson.lesson_type === "video" || lesson.lesson_type === "pdf") && !content.content_file && (
+      {content &&
+        lesson.lesson_type === "video" &&
+        !content.content_file &&
+        !content.video_url && (
+          <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-foreground/50">
+            The instructor hasn&apos;t added a video for this lesson yet.
+          </p>
+        )}
+
+      {content && lesson.lesson_type === "pdf" && !content.content_file && (
         <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-foreground/50">
-          The instructor hasn&apos;t uploaded {lesson.lesson_type === "video" ? "a video" : "a PDF"} for this
-          lesson yet.
+          The instructor hasn&apos;t uploaded a PDF for this lesson yet.
         </p>
       )}
 
-      {content && (lesson.lesson_type === "article" ||
-        lesson.lesson_type === "quiz" ||
-        lesson.lesson_type === "assignment") && (
+      {content && lesson.lesson_type === "article" && content.article_body && (
+        <div className="whitespace-pre-wrap rounded-xl border border-border bg-surface p-6 text-sm leading-relaxed text-foreground/80">
+          {content.article_body}
+        </div>
+      )}
+
+      {content && lesson.lesson_type === "article" && !content.article_body && (
+        <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-foreground/50">
+          The instructor hasn&apos;t written this article yet.
+        </p>
+      )}
+
+      {content && (lesson.lesson_type === "quiz" || lesson.lesson_type === "assignment") && (
         <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-foreground/50">
           This lesson type doesn&apos;t have a dedicated viewer yet — use &quot;Mark as complete&quot; to track
           your progress through it.

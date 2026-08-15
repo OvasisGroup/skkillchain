@@ -12,8 +12,13 @@ export interface LessonCreateInput {
   sort_order?: number;
   duration_seconds?: number;
   is_preview?: boolean;
-  // Only meaningful when lesson_type is "video" or "pdf".
+  // Only meaningful when lesson_type is "video" or "pdf" — and only one of
+  // content_file/video_url at a time for a video lesson (the backend
+  // rejects both being set together).
   content_file?: File;
+  video_url?: string;
+  // Only meaningful when lesson_type is "article".
+  article_body?: string;
 }
 
 function lessonFormData(input: LessonCreateInput): FormData {
@@ -24,6 +29,8 @@ function lessonFormData(input: LessonCreateInput): FormData {
   form.set("duration_seconds", String(input.duration_seconds ?? 0));
   form.set("is_preview", String(input.is_preview ?? false));
   if (input.content_file) form.set("content_file", input.content_file);
+  if (input.video_url) form.set("video_url", input.video_url);
+  if (input.article_body) form.set("article_body", input.article_body);
   return form;
 }
 

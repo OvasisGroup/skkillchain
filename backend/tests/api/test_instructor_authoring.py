@@ -320,6 +320,74 @@ class TestSectionAndLessonAuthoring:
 
         assert response.status_code == 200
 
+    def test_video_lesson_accepts_a_url_instead_of_a_file(self, auth_client, instructor):
+        course = Course.objects.create(owner=instructor, title="With Sections")
+        section = auth_client.post(
+            f"/api/v1/instructor/courses/{course.id}/sections/",
+            {"title": "Intro", "sort_order": 1},
+            format="json",
+        ).data
+
+        response = auth_client.post(
+            f"/api/v1/instructor/sections/{section['id']}/lessons/",
+            {
+                "title": "Welcome",
+                "lesson_type": "video",
+                "sort_order": 1,
+                "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 201
+        assert response.data["video_url"] == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+    def test_article_lesson_accepts_body_text(self, auth_client, instructor):
+        course = Course.objects.create(owner=instructor, title="With Sections")
+        section = auth_client.post(
+            f"/api/v1/instructor/courses/{course.id}/sections/",
+            {"title": "Intro", "sort_order": 1},
+            format="json",
+        ).data
+
+        response = auth_client.post(
+            f"/api/v1/instructor/sections/{section['id']}/lessons/",
+            {
+                "title": "Reading",
+                "lesson_type": "article",
+                "sort_order": 1,
+                "article_body": "This is the lesson content.",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 201
+        assert response.data["article_body"] == "This is the lesson content."
+
+    def test_video_lesson_rejects_both_file_and_url_together(self, auth_client, instructor):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        course = Course.objects.create(owner=instructor, title="With Sections")
+        section = auth_client.post(
+            f"/api/v1/instructor/courses/{course.id}/sections/",
+            {"title": "Intro", "sort_order": 1},
+            format="json",
+        ).data
+        lesson_id = auth_client.post(
+            f"/api/v1/instructor/sections/{section['id']}/lessons/",
+            {"title": "Welcome", "lesson_type": "video", "sort_order": 1},
+            format="json",
+        ).data["id"]
+
+        video = SimpleUploadedFile("clip.mp4", b"fake mp4 bytes", content_type="video/mp4")
+        response = auth_client.patch(
+            f"/api/v1/instructor/lessons/{lesson_id}/",
+            {"content_file": video, "video_url": "https://youtu.be/dQw4w9WgXcQ"},
+            format="multipart",
+        )
+
+        assert response.status_code == 400
+
     def test_non_owner_cannot_add_section(self, api_client, instructor, other_instructor):
         course = Course.objects.create(owner=instructor, title="Not Yours")
         api_client.force_authenticate(user=other_instructor)

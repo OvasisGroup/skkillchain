@@ -36,9 +36,12 @@ class Lesson(models.Model):
     """
     quiz/assignment content lives in their own tables in the assessments app
     (M5) — lesson_type is just a label for those two. video/pdf lessons hold
-    their own file in content_file; video playback-position metadata beyond
-    the raw file (provider, adaptive bitrate, etc.) is still a deferred
-    follow-up per the M3 commit notes.
+    their own file in content_file, or a video lesson can instead point at
+    an external URL (YouTube, Vimeo, or any directly playable media URL) via
+    video_url — set at most one of the two; the frontend prefers video_url
+    when present. article lessons hold their text directly in article_body.
+    Video playback-position metadata beyond the raw file (provider, adaptive
+    bitrate, etc.) is still a deferred follow-up per the M3 commit notes.
     """
 
     TYPE_VIDEO = "video"
@@ -72,6 +75,13 @@ class Lesson(models.Model):
         max_length=255,
         validators=[FileExtensionValidator(allowed_extensions=ALLOWED_LESSON_CONTENT_EXTENSIONS)],
     )
+    # Alternative to content_file for TYPE_VIDEO — an external URL (YouTube,
+    # Vimeo, or any directly playable media file URL) instead of an upload.
+    video_url = models.URLField(max_length=500, blank=True)
+    # Only meaningful for TYPE_ARTICLE — the lesson's text, stored directly
+    # rather than as a file (no extension/MIME validation to worry about,
+    # and it's what content_file's own upload path can't reasonably hold).
+    article_body = models.TextField(blank=True)
 
     class Meta:
         db_table = "lessons"

@@ -68,10 +68,15 @@ function LessonForm({
   const [durationSeconds, setDurationSeconds] = useState("300");
   const [isPreview, setIsPreview] = useState(false);
   const [contentFile, setContentFile] = useState<File | null>(null);
+  const [videoSource, setVideoSource] = useState<"file" | "url">("file");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [articleBody, setArticleBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const needsFile = lessonType === "video" || lessonType === "pdf";
+  const showFileInput = lessonType === "pdf" || (lessonType === "video" && videoSource === "file");
+  const showVideoUrlInput = lessonType === "video" && videoSource === "url";
+  const showArticleInput = lessonType === "article";
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -87,7 +92,9 @@ function LessonForm({
           sort_order: nextSortOrder,
           duration_seconds: Number(durationSeconds) || 0,
           is_preview: isPreview,
-          content_file: needsFile && contentFile ? contentFile : undefined,
+          content_file: showFileInput && contentFile ? contentFile : undefined,
+          video_url: showVideoUrlInput && videoUrl.trim() ? videoUrl.trim() : undefined,
+          article_body: showArticleInput && articleBody.trim() ? articleBody.trim() : undefined,
         },
         token
       );
@@ -143,7 +150,33 @@ function LessonForm({
           Free preview
         </label>
       </div>
-      {needsFile && (
+      {lessonType === "video" && (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setVideoSource("file")}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              videoSource === "file"
+                ? "border-teal-400 bg-teal-400/10 text-teal-400"
+                : "border-border-strong text-foreground/60 hover:bg-surface-hover"
+            }`}
+          >
+            Upload file
+          </button>
+          <button
+            type="button"
+            onClick={() => setVideoSource("url")}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              videoSource === "url"
+                ? "border-teal-400 bg-teal-400/10 text-teal-400"
+                : "border-border-strong text-foreground/60 hover:bg-surface-hover"
+            }`}
+          >
+            Video URL
+          </button>
+        </div>
+      )}
+      {showFileInput && (
         <div>
           <input
             type="file"
@@ -154,6 +187,35 @@ function LessonForm({
           <p className="mt-1 text-xs text-foreground/40">
             Optional here — you can attach the {lessonType === "video" ? "video" : "PDF"} file
             now or come back later.
+          </p>
+        </div>
+      )}
+      {showVideoUrlInput && (
+        <div>
+          <input
+            type="url"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=… or any direct video URL"
+            className={authInputClass}
+          />
+          <p className="mt-1 text-xs text-foreground/40">
+            YouTube, Vimeo, or a direct link to a video file — optional here, you can add it
+            later too.
+          </p>
+        </div>
+      )}
+      {showArticleInput && (
+        <div>
+          <textarea
+            rows={6}
+            value={articleBody}
+            onChange={(e) => setArticleBody(e.target.value)}
+            placeholder="Write the lesson content here…"
+            className={authInputClass}
+          />
+          <p className="mt-1 text-xs text-foreground/40">
+            Optional here — you can write the article now or come back later.
           </p>
         </div>
       )}
@@ -300,12 +362,20 @@ export function SectionsBuilder({
                     {(lesson.lesson_type === "video" || lesson.lesson_type === "pdf") &&
                       (lesson.content_file ? (
                         <span className="text-xs text-teal-400">File attached</span>
+                      ) : lesson.video_url ? (
+                        <span className="text-xs text-teal-400">Video URL set</span>
                       ) : (
                         <LessonContentUpload
                           lesson={lesson}
                           token={token}
                           onUploaded={(updated) => handleLessonUpdated(section.id, updated)}
                         />
+                      ))}
+                    {lesson.lesson_type === "article" &&
+                      (lesson.article_body ? (
+                        <span className="text-xs text-teal-400">Article written</span>
+                      ) : (
+                        <span className="text-xs text-foreground/40">No content yet</span>
                       ))}
                   </span>
                 </li>
