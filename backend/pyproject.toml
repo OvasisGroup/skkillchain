@@ -52,7 +52,14 @@ dev = [
     # tool (never ships to prod), but the fix was cheap: a 30-file
     # `black .` reformat with no behavior change.
     "black>=26.3,<27.0",
-    "mypy>=1.11,<1.12",
+    # Must track django-stubs below closely enough to avoid its plugin
+    # crashing or losing manager-type inference — 1.11.x + django-stubs
+    # 5.2.x hit an internal mypy crash on apps/analytics/aggregation.py.
+    "mypy>=1.14,<1.15",
+    # Was pinned to <5.1 while Django itself requires >=5.2 — a full
+    # minor version behind, which silently broke `<Model>.objects`
+    # resolution (mypy reported "type[X] has no attribute objects") on
+    # every model the plugin's manager inference touched.
     "django-stubs>=5.2,<5.3",
     # >=9.0 for PYSEC-2026-1845 (pip-audit flagged 8.4.2).
     "pytest>=9.0,<10.0",
