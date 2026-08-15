@@ -3,17 +3,23 @@
 import { useState } from "react";
 import { ApiError } from "@/lib/api/client";
 import { uploadCourseCoverImage } from "@/lib/api/instructorCourses";
+import type { CourseWriteResult } from "@/lib/api/types";
 
 export function CourseCoverImage({
   courseId,
   coverImage,
   token,
   onUploaded,
+  uploadFn = uploadCourseCoverImage,
 }: {
   courseId: string;
   coverImage: string | null;
   token: string;
   onUploaded: (coverImage: string | null) => void;
+  // Defaults to the instructor endpoint — AdminCourseEditor passes
+  // uploadAdminCourseCoverImage instead, same shape, different permission
+  // scope (courses.manage vs. ownership).
+  uploadFn?: (courseId: string, file: File, token: string) => Promise<CourseWriteResult>;
 }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +29,7 @@ export function CourseCoverImage({
     setUploading(true);
     setError(null);
     try {
-      const updated = await uploadCourseCoverImage(courseId, file, token);
+      const updated = await uploadFn(courseId, file, token);
       onUploaded(updated.cover_image);
     } catch (err) {
       setError(err instanceof ApiError ? err.message_ : "Couldn't upload the cover image.");

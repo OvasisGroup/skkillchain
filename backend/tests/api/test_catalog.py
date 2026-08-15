@@ -299,3 +299,200 @@ class TestInstructorDirectory:
         response = api_client.get("/api/v1/instructors/00000000-0000-0000-0000-000000000000/")
 
         assert response.status_code == 404
+
+
+class TestAdminCourseManagement:
+    @pytest.fixture
+    def admin(self, django_user_model):
+        from apps.authorization.models import Role, UserRole
+
+        admin = django_user_model.objects.create_user(email="admin@example.com", password="x")
+        UserRole.objects.create(user=admin, role=Role.objects.get(code="administrator"))
+        return admin
+
+    @pytest.fixture
+    def admin_client(self, api_client, admin):
+        api_client.force_authenticate(user=admin)
+        return api_client
+
+    @pytest.fixture
+    def instructor_role_user(self, django_user_model):
+        from apps.authorization.models import Role, UserRole
+
+        user = django_user_model.objects.create_user(
+            email="real-instructor@example.com", password="x"
+        )
+        UserRole.objects.create(user=user, role=Role.objects.get(code="instructor"))
+        return user
+
+    @pytest.fixture
+    def category(self):
+        return Category.objects.create(name="Programming", slug="programming")
+
+    def test_non_admin_gets_403_on_list(self, api_client, instructor):
+        api_client.force_authenticate(user=instructor)
+
+        response = api_client.get("/api/v1/admin/courses/")
+
+        assert response.status_code == 403
+
+    def test_lists_every_course_regardless_of_owner_or_status(
+        self, admin_client, instructor
+    ):
+        Course.objects.create(owner=instructor, title="Someone's Draft")
+        _published_course(instructor, title="Someone's Published Course")
+
+        response = admin_client.get("/api/v1/admin/courses/")
+
+        titles = {item["title"] for item in response.data["results"]}
+        assert titles == {"Someone's Draft", "Someone's Published Course"}
+
+    def test_filters_by_status(self, admin_client, instructor):
+        Course.objects.create(owner=instructor, title="Draft One")
+        _published_course(instructor, title="Live One")
+
+        response = admin_client.get("/api/v1/admin/courses/?status=draft")
+
+        titles = [item["title"] for item in response.data["results"]]
+        assert titles == ["Draft One"]
+
+    def test_admin_can_create_course_for_instructor(
+        self, admin_client, instructor_role_user, category
+    ):
+        response = admin_client.post(
+            "/api/v1/admin/courses/",
+            {
+                "owner_id": str(instructor_role_user.id),
+                "title": "Ghost-authored Course",
+                "category_id": str(category.id),
+            },
+            format="json",
+        )
+
+        assert response.status_code == 201
+        course = Course.objects.get(id=response.data["id"])
+        assert course.owner_id == instructor_role_user.id
+        assert course.status == Course.STATUS_DRAFT
+
+    def test_create_rejects_a_non_instructor_owner(self, admin_client, instructor, category):
+        # `instructor` (test_catalog.py's module fixture) is a plain user
+        # with no instructor role — owner_id's queryset only resolves users
+        # who actually hold the role, same as the frontend's picker search.
+        response = admin_client.post(
+            "/api/v1/admin/courses/",
+            {
+                "owner_id": str(instructor.id),
+                "title": "Should Fail",
+                "category_id": str(category.id),
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "owner_id" in response.data["errors"]
+
+    def test_non_admin_gets_403_on_create(self, api_client, instructor, category):
+        api_client.force_authenticate(user=instructor)
+
+        response = api_client.post(
+            "/api/v1/admin/courses/",
+            {"owner_id": str(instructor.id), "title": "X", "category_id": str(category.id)},
+            format="json",
+        )
+
+        assert response.status_code == 403
+
+    def test_admin_can_edit_any_course_regardless_of_status(self, admin_client, instructor):
+        course = Course.objects.create(owner=instructor, title="Submitted Course")
+        course.submit_for_review()  # instructor's own PATCH blocks this status; admin's shouldn't
+
+        response = admin_client.patch(
+            f"/api/v1/admin/courses/{course.id}/", {"summary": "Admin edit"}, format="json"
+        )
+
+        assert response.status_code == 200
+        course.refresh_from_db()
+        assert course.summary == "Admin edit"
+
+    def test_get_includes_prerequisites_and_nested_category(self, admin_client, instructor, category):
+        from apps.catalog.models import CoursePrerequisite
+
+        course = Course.objects.create(owner=instructor, title="With Prereqs", category=category)
+        CoursePrerequisite.objects.create(course=course, text="Basic Python")
+
+        response = admin_client.get(f"/api/v1/admin/courses/{course.id}/")
+
+        assert response.status_code == 200
+        assert response.data["prerequisites"] == ["Basic Python"]
+        assert response.data["category"]["slug"] == category.slug
+
+    def test_editing_published_course_notifies_enrolled_students(
+        self, admin_client, instructor, django_user_model, monkeypatch
+    ):
+        from apps.catalog import tasks
+        from apps.learning.models import Enrollment
+
+        course = _published_course(instructor, title="Live Course")
+        student = django_user_model.objects.create_user(email="student@example.com", password="x")
+        Enrollment.objects.create(student=student, course=course)
+        monkeypatch.setattr(tasks.notify_course_update, "delay", tasks.notify_course_update)
+
+        response = admin_client.patch(
+            f"/api/v1/admin/courses/{course.id}/", {"summary": "Refreshed"}, format="json"
+        )
+
+        assert response.status_code == 200
+
+    def test_notify_instructor_creates_notification(self, admin_client, instructor):
+        from apps.notifications.models import Notification
+
+        course = _published_course(instructor, title="Live Course")
+
+        response = admin_client.post(
+            f"/api/v1/admin/courses/{course.id}/notify/",
+            {"audience": "instructor", "subject": "Heads up", "message": "Please read this."},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        notifications = Notification.objects.filter(user=instructor)
+        channels = {n.channel for n in notifications}
+        assert channels == {"in_app", "email"}
+        assert all(n.title == "Heads up" for n in notifications)
+
+    def test_notify_students_fans_out_via_task(
+        self, admin_client, instructor, django_user_model, monkeypatch
+    ):
+        from apps.catalog import tasks
+        from apps.learning.models import Enrollment
+        from apps.notifications.models import Notification
+
+        course = _published_course(instructor, title="Live Course")
+        student = django_user_model.objects.create_user(email="student@example.com", password="x")
+        Enrollment.objects.create(student=student, course=course)
+        monkeypatch.setattr(
+            tasks.notify_course_recipients, "delay", tasks.notify_course_recipients
+        )
+
+        response = admin_client.post(
+            f"/api/v1/admin/courses/{course.id}/notify/",
+            {"audience": "students", "subject": "New content", "message": "Check it out."},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        notifications = Notification.objects.filter(user=student)
+        assert notifications.count() == 2  # in_app + email
+        assert Notification.objects.filter(user=instructor).count() == 0
+
+    def test_non_admin_gets_403_on_notify(self, api_client, instructor):
+        course = _published_course(instructor, title="Live Course")
+        api_client.force_authenticate(user=instructor)
+
+        response = api_client.post(
+            f"/api/v1/admin/courses/{course.id}/notify/",
+            {"audience": "both", "subject": "X", "message": "Y"},
+            format="json",
+        )
+
+        assert response.status_code == 403

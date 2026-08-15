@@ -32,6 +32,15 @@ urlpatterns = [
         views.CoursePublishView.as_view(),
         name="course-publish",
     ),
+    path("admin/courses/", views.AdminCourseListView.as_view(), name="admin-course-list-create"),
+    path(
+        "admin/courses/<uuid:id>/", views.AdminCourseDetailView.as_view(), name="admin-course-detail"
+    ),
+    path(
+        "admin/courses/<uuid:id>/notify/",
+        views.AdminCourseNotifyView.as_view(),
+        name="admin-course-notify",
+    ),
     path(
         "admin/courses/pending-review/",
         views.CoursesPendingReviewView.as_view(),

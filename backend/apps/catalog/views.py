@@ -19,10 +19,12 @@ from apps.content.serializers import SectionSerializer
 
 from .models import Category, Course, InvalidCourseTransition, Tag
 from .serializers import (
+    AdminCourseWriteSerializer,
     CategorySerializer,
     CategoryWriteSerializer,
     CourseDetailSerializer,
     CourseListSerializer,
+    CourseNotifySerializer,
     CoursePreviewSectionSerializer,
     CourseRejectSerializer,
     CourseWriteSerializer,
@@ -699,3 +701,193 @@ class CourseRejectView(APIView):
             payload={"reason": serializer.validated_data["reason"]},
         )
         return Response(CourseDetailSerializer(course).data)
+
+
+# ---------- Admin course management (courses.manage permission) ----------
+# Distinct from the review/moderation views above (courses.approve): those
+# gate the submitted->approved/rejected workflow only. These give full CRUD
+# over every course regardless of owner or status, plus the ability to
+# create a course on an instructor's behalf and message a course's
+# instructor/students directly — administrator/super_administrator only,
+# see catalog/migrations/0007_seed_course_manage_permission.py.
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Admin"],
+        parameters=[
+            OpenApiParameter("status", str, description="Filter by course status."),
+            OpenApiParameter("category", str, description="Filter by category slug."),
+            OpenApiParameter("language", str, description="Filter by ISO language code."),
+            OpenApiParameter(
+                "difficulty", str, description="Filter by difficulty: beginner/intermediate/advanced."
+            ),
+            OpenApiParameter("q", str, description="Case-insensitive search over title and summary."),
+        ],
+        description="Lists every course platform-wide, any owner or status. Requires the "
+        "courses.manage permission.",
+        examples=[OpenApiExample("Course", value=_COURSE_LIST_EXAMPLE, response_only=True)],
+    ),
+    post=extend_schema(
+        tags=["Admin"],
+        description="Creates a new draft course on behalf of the instructor given by "
+        "owner_id. Requires the courses.manage permission.",
+        examples=[
+            OpenApiExample(
+                "Create for instructor",
+                value={**_COURSE_WRITE_EXAMPLE, "owner_id": "b6a5b6c0-9b1e-4c9a-9b7a-1f2e3d4c5b6a"},
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Created", value={**_COURSE_WRITE_EXAMPLE, "status": "draft"}, response_only=True
+            ),
+        ],
+    ),
+)
+class AdminCourseListView(generics.ListCreateAPIView):
+    permission_classes = [HasPermission]
+    required_permission = "courses.manage"
+
+    def get_serializer_class(self):
+        return AdminCourseWriteSerializer if self.request.method == "POST" else CourseListSerializer
+
+    def get_queryset(self):
+        qs = Course.objects.all().select_related("owner", "category")
+        params = self.request.query_params
+        if status := params.get("status"):
+            qs = qs.filter(status=status)
+        if category := params.get("category"):
+            qs = qs.filter(category__slug=category)
+        if language := params.get("language"):
+            qs = qs.filter(language=language)
+        if difficulty := params.get("difficulty"):
+            qs = qs.filter(difficulty=difficulty)
+        if q := params.get("q"):
+            qs = qs.filter(Q(title__icontains=q) | Q(summary__icontains=q))
+        return qs.distinct()
+
+    def perform_create(self, serializer):
+        course = serializer.save()
+        record_event(
+            actor=self.request.user,
+            action="course.create",
+            entity_type="Course",
+            entity_id=course.id,
+            request=self.request,
+            payload={"owner_id": str(course.owner_id), "created_by": "admin"},
+        )
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Admin"],
+        description="Gets any course by id, any owner or status. Requires the "
+        "courses.manage permission.",
+        examples=[
+            OpenApiExample(
+                "Course", value={**_COURSE_WRITE_EXAMPLE, "status": "draft"}, response_only=True
+            )
+        ],
+    ),
+    patch=extend_schema(
+        tags=["Admin"],
+        description="Partially updates any course's record (title/summary/description/"
+        "price/category/tags/cover/prerequisites/objectives) regardless of owner or "
+        "status. Curriculum (sections/lessons/quizzes) isn't editable here — that stays "
+        "instructor-only. Editing a published course notifies every enrolled student, "
+        "same as the instructor-facing edit. Requires the courses.manage permission.",
+        examples=[
+            OpenApiExample(
+                "Update summary", value={"summary": "Updated summary"}, request_only=True
+            )
+        ],
+    ),
+    put=extend_schema(
+        tags=["Admin"],
+        description="Replaces any course's record fields. Requires the courses.manage "
+        "permission.",
+        examples=[OpenApiExample("Replace course", value=_COURSE_WRITE_EXAMPLE, request_only=True)],
+    ),
+)
+class AdminCourseDetailView(generics.RetrieveUpdateAPIView):
+    permission_classes = [HasPermission]
+    required_permission = "courses.manage"
+    lookup_url_kwarg = "id"
+    queryset = Course.objects.select_related("owner", "category").prefetch_related(
+        "tags", "prerequisites", "learning_objectives"
+    )
+
+    def get_serializer_class(self):
+        # CourseWriteSerializer's prerequisites/learning_objectives are
+        # write_only (see its Meta comment) and category_id/tag_ids are
+        # bare ids — fine for a PATCH/PUT body, but a GET through the same
+        # serializer would silently omit prerequisites/objectives, which
+        # would then read as "clear them" on the next save since the admin
+        # edit form always resubmits every field. CourseDetailSerializer's
+        # full read shape avoids that trap.
+        return CourseDetailSerializer if self.request.method == "GET" else AdminCourseWriteSerializer
+
+    def perform_update(self, serializer):
+        course = self.get_object()
+        serializer.save()
+        if course.status == Course.STATUS_PUBLISHED:
+            from .tasks import notify_course_update
+
+            notify_course_update.delay(str(course.id))
+
+
+@extend_schema(
+    tags=["Admin"],
+    request=CourseNotifySerializer,
+    responses={200: CourseNotifySerializer},
+    description="Sends a message to a course's instructor and/or its enrolled students, "
+    "always over both in-app and email channels. Requires the courses.manage permission.",
+    examples=[
+        OpenApiExample(
+            "Notify both",
+            value={
+                "audience": "both",
+                "subject": "Heads up about your course",
+                "message": "We've made a small update to the catalog listing rules.",
+            },
+            request_only=True,
+        )
+    ],
+)
+class AdminCourseNotifyView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = "courses.manage"
+    throttle_scope = "admin-write"
+
+    def post(self, request, id):
+        course = get_object_or_404(Course, pk=id)
+        serializer = CourseNotifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        audience = serializer.validated_data["audience"]
+        subject = serializer.validated_data["subject"]
+        message = serializer.validated_data["message"]
+
+        if audience in (CourseNotifySerializer.AUDIENCE_INSTRUCTOR, CourseNotifySerializer.AUDIENCE_BOTH):
+            from apps.notifications.services import notify
+
+            notify(
+                course.owner,
+                type="course_update",
+                channels=["in_app", "email"],
+                title=subject,
+                body=message,
+            )
+        if audience in (CourseNotifySerializer.AUDIENCE_STUDENTS, CourseNotifySerializer.AUDIENCE_BOTH):
+            from .tasks import notify_course_recipients
+
+            notify_course_recipients.delay(str(course.id), subject, message)
+
+        record_event(
+            actor=request.user,
+            action="course.notify",
+            entity_type="Course",
+            entity_id=course.id,
+            request=request,
+            payload={"audience": audience, "subject": subject},
+        )
+        return Response(serializer.validated_data)

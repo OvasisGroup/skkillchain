@@ -22,3 +22,19 @@ def notify_course_update(course_id: str) -> None:
         logger.warning("catalog.notify_course_update: course %s no longer exists", course_id)
         return
     notify_enrolled_students_of_update(course)
+
+
+@shared_task(name="catalog.notify_course_recipients", time_limit=300)
+def notify_course_recipients(course_id: str, subject: str, message: str) -> None:
+    """Same fan-out shape as notify_course_update, but with an admin-
+    supplied subject/message instead of fixed copy — see
+    AdminCourseNotifyView (students-audience branch)."""
+    from .models import Course
+    from .services import notify_enrolled_students
+
+    try:
+        course = Course.objects.get(id=course_id)
+    except Course.DoesNotExist:
+        logger.warning("catalog.notify_course_recipients: course %s no longer exists", course_id)
+        return
+    notify_enrolled_students(course, subject=subject, message=message)

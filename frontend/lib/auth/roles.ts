@@ -4,6 +4,7 @@ import {
   Building2,
   FileCheck2,
   GraduationCap,
+  LibraryBig,
   LifeBuoy,
   Link2,
   type LucideIcon,
@@ -70,6 +71,12 @@ export const DASHBOARD_NAV: DashboardNavItem[] = [
     visible: (u) => hasRole(u, "finance_officer") || isAdmin(u),
   },
   { path: "/dashboard/affiliate", label: "Affiliate", icon: Link2, visible: () => true },
+  {
+    path: "/dashboard/courses",
+    label: "Courses",
+    icon: LibraryBig,
+    visible: (u) => isAdmin(u),
+  },
   { path: "/dashboard/admin", label: "Admin", icon: ShieldAlert, visible: (u) => isAdmin(u) },
   {
     path: "/dashboard/organization",

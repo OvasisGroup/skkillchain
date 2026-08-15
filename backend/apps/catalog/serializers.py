@@ -192,11 +192,19 @@ class CourseWriteSerializer(serializers.ModelSerializer):
         prerequisites = validated_data.pop("prerequisites", [])
         learning_objectives = validated_data.pop("learning_objectives", [])
         tags = validated_data.pop("tags", [])
+        owner = self._resolve_owner(validated_data)
 
-        course = Course.objects.create(owner=self.context["request"].user, **validated_data)
+        course = Course.objects.create(owner=owner, **validated_data)
         course.tags.set(tags)
         self._replace_text_rows(course, prerequisites, learning_objectives)
         return course
+
+    def _resolve_owner(self, validated_data):
+        """Every instructor-facing course create is self-service — the
+        request.user *is* the owner. AdminCourseWriteSerializer overrides
+        this to pop the picked instructor (owner_id) out of validated_data
+        instead, so it isn't also passed through **validated_data below."""
+        return self.context["request"].user
 
     def update(self, instance, validated_data):
         prerequisites = validated_data.pop("prerequisites", None)
@@ -229,3 +237,38 @@ class CourseWriteSerializer(serializers.ModelSerializer):
 
 class CourseRejectSerializer(serializers.Serializer):
     reason = serializers.CharField()
+
+
+class AdminCourseWriteSerializer(CourseWriteSerializer):
+    """Same course-record fields as CourseWriteSerializer (still no access
+    to curriculum — sections/lessons/quizzes stay instructor-only), plus an
+    admin-only owner_id so AdminCourseListView.post can create a course on
+    behalf of any instructor instead of always defaulting to request.user.
+    Required on create, ignored on update (owner never changes there)."""
+
+    owner_id = serializers.PrimaryKeyRelatedField(
+        source="owner",
+        queryset=User.objects.filter(user_roles__role__code="instructor").distinct(),
+        required=False,
+        write_only=True,
+    )
+
+    class Meta(CourseWriteSerializer.Meta):
+        fields = CourseWriteSerializer.Meta.fields + ["owner_id"]
+
+    def _resolve_owner(self, validated_data):
+        owner = validated_data.pop("owner", None)
+        if owner is None:
+            raise serializers.ValidationError({"owner_id": "This field is required."})
+        return owner
+
+
+class CourseNotifySerializer(serializers.Serializer):
+    AUDIENCE_INSTRUCTOR = "instructor"
+    AUDIENCE_STUDENTS = "students"
+    AUDIENCE_BOTH = "both"
+    AUDIENCE_CHOICES = [AUDIENCE_INSTRUCTOR, AUDIENCE_STUDENTS, AUDIENCE_BOTH]
+
+    audience = serializers.ChoiceField(choices=AUDIENCE_CHOICES)
+    subject = serializers.CharField(max_length=255)
+    message = serializers.CharField()

@@ -1,11 +1,11 @@
 from .models import Course
 
 
-def notify_enrolled_students_of_update(course: Course) -> None:
-    """Called after an instructor edits a course that's already live —
-    enrollments only ever exist against a published course (see
+def notify_enrolled_students(course: Course, subject: str, message: str) -> None:
+    """Fans out an in-app + email notification to every student enrolled in
+    `course`. Enrollments only ever exist against a published course (see
     learning.views.EnrollView), so this is a no-op for a draft/rejected
-    edit where nobody could be enrolled yet."""
+    course where nobody could be enrolled yet."""
     from apps.identity.models import User
     from apps.learning.models import Enrollment
     from apps.notifications.services import notify
@@ -18,6 +18,16 @@ def notify_enrolled_students_of_update(course: Course) -> None:
             student,
             type="course_update",
             channels=["in_app", "email"],
-            title=f"Course updated: {course.title}",
-            body=f'Your instructor made updates to "{course.title}". Check out what\'s new.',
+            title=subject,
+            body=message,
         )
+
+
+def notify_enrolled_students_of_update(course: Course) -> None:
+    """Called after an instructor (or an admin, via AdminCourseDetailView)
+    edits a course that's already live."""
+    notify_enrolled_students(
+        course,
+        subject=f"Course updated: {course.title}",
+        message=f'Your instructor made updates to "{course.title}". Check out what\'s new.',
+    )

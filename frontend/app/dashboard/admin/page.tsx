@@ -117,7 +117,7 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     if (!accessToken) return;
     try {
-      const page = await listUsers(accessToken, emailSearch || undefined);
+      const page = await listUsers(accessToken, { email: emailSearch || undefined });
       setUsers(page.results);
     } catch (err) {
       setError(err instanceof ApiError ? err.message_ : "Couldn't search users.");

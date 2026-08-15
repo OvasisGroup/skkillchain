@@ -21,9 +21,12 @@ _ADMIN_USER_EXAMPLE = {
 @extend_schema(
     tags=["Admin"],
     parameters=[
-        OpenApiParameter("email", str, description="Case-insensitive substring filter on email.")
+        OpenApiParameter("email", str, description="Case-insensitive substring filter on email."),
+        OpenApiParameter(
+            "role", str, description="Filter to users holding this role code, e.g. 'instructor'."
+        ),
     ],
-    description="Lists platform users, optionally filtered by an email substring.",
+    description="Lists platform users, optionally filtered by an email substring and/or role.",
     examples=[OpenApiExample("User", value=_ADMIN_USER_EXAMPLE, response_only=True)],
 )
 class AdminUserListView(generics.ListAPIView):
@@ -36,6 +39,9 @@ class AdminUserListView(generics.ListAPIView):
         email = self.request.query_params.get("email")
         if email:
             queryset = queryset.filter(email__icontains=email)
+        role = self.request.query_params.get("role")
+        if role:
+            queryset = queryset.filter(user_roles__role__code=role).distinct()
         return queryset
 
 

@@ -1,9 +1,17 @@
 import { apiFetch } from "./client";
-import type { AdminUser, CursorPage } from "./types";
+import type { AdminUser, CursorPage, RoleCode } from "./types";
 
-export function listUsers(token: string, email?: string): Promise<CursorPage<AdminUser>> {
-  const query = email ? `?email=${encodeURIComponent(email)}` : "";
-  return apiFetch<CursorPage<AdminUser>>(`/admin/users/${query}`, { token, cache: "no-store" });
+export function listUsers(
+  token: string,
+  filters?: { email?: string; role?: RoleCode }
+): Promise<CursorPage<AdminUser>> {
+  const query = new URLSearchParams(
+    Object.entries(filters ?? {}).filter(([, v]) => v !== undefined && v !== "")
+  ).toString();
+  return apiFetch<CursorPage<AdminUser>>(`/admin/users/${query ? `?${query}` : ""}`, {
+    token,
+    cache: "no-store",
+  });
 }
 
 export function updateUserStatus(
