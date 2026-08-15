@@ -17,7 +17,7 @@ export function CapabilityStrip() {
   return (
     <section className="bg-teal-600">
       <Reveal
-        className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-10 gap-y-6 px-6 py-8"
+        className="mx-auto flex max-w-7xl flex-col items-center gap-y-1.5 px-6 py-8 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-10 sm:gap-y-6"
         stagger={0.08}
         y={12}
       >
@@ -26,7 +26,7 @@ export function CapabilityStrip() {
             key={label}
             className="flex items-center gap-2 text-sm font-medium text-white/90"
           >
-            <Icon className="h-4 w-4 text-black" />
+            <Icon className="hidden h-4 w-4 text-black sm:block" />
             {label}
           </div>
         ))}
