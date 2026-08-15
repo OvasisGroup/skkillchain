@@ -485,6 +485,37 @@ paths:
           schema: { type: string }
       responses:
         '201': { description: Lesson created }
+  /instructor/lessons/{lessonId}:
+    get:
+      tags: [Instructor]
+      summary: Get a lesson within a course the current instructor owns
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Lesson detail }
+    patch:
+      tags: [Instructor]
+      summary: Update a lesson, including attaching/replacing its content_file (video/PDF) — only while the course is draft or rejected
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Lesson updated }
+    put:
+      tags: [Instructor]
+      summary: Replace a lesson — only while the course is draft or rejected
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Lesson updated }
   # NOTE: direct-to-provider video upload-init and lesson-resource-attach
   # endpoints were planned but never built — Lesson's own docstring
   # (apps/content/models.py) says video provider/playback metadata is a
@@ -502,6 +533,16 @@ paths:
       responses:
         '201': { description: Quiz created }
   /instructor/courses/{courseId}/assignments:
+    get:
+      tags: [Instructor]
+      summary: List assignments for a course the current instructor owns
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Assignment list }
     post:
       tags: [Instructor]
       summary: Create an assignment for a course
@@ -512,6 +553,17 @@ paths:
           schema: { type: string }
       responses:
         '201': { description: Assignment created }
+  /instructor/courses/{courseId}/students:
+    get:
+      tags: [Instructor]
+      summary: List every student enrolled in a course the current user teaches, with aggregate progress
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Student roster with progress }
   /instructor/courses/{courseId}/coupons:
     post:
       tags: [Instructor]
@@ -608,6 +660,28 @@ paths:
       summary: Enroll in a course
       responses:
         '201': { description: Enrolled }
+  /courses/{courseId}/curriculum:
+    get:
+      tags: [Student]
+      summary: Get the section/lesson structure for a course the current user is enrolled in (no lesson content, just the curriculum sidebar)
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Curriculum sections with lessons }
+  /lessons/{lessonId}/content:
+    get:
+      tags: [Student]
+      summary: Get a lesson's playable/viewable content (video or PDF file URL) for a course the current user is enrolled in
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Lesson content }
   /students/me/courses:
     get:
       tags: [Student]
@@ -974,6 +1048,16 @@ paths:
           schema: { type: string }
       responses:
         '200': { description: Hackathon updated }
+    put:
+      tags: [HackathonOrganizer]
+      summary: Replace a hackathon the current user organizes
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Hackathon updated }
   /organizer/hackathons/{hackathonId}/publish:
     post:
       tags: [HackathonOrganizer]
@@ -1020,6 +1104,101 @@ paths:
       responses:
         '201': { description: Winner declared }
         '400': { description: 'Placement/submission already used, or the registration has no submission' }
+  /admin/hackathons:
+    get:
+      tags: [Admin]
+      summary: List every hackathon platform-wide, any status or organizer (requires hackathons.manage)
+      responses:
+        '200': { description: Hackathon list }
+  /admin/hackathons/{hackathonId}:
+    get:
+      tags: [Admin]
+      summary: Get any hackathon regardless of organizer (requires hackathons.manage)
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Hackathon detail }
+    patch:
+      tags: [Admin]
+      summary: Update any hackathon regardless of organizer (requires hackathons.manage)
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Hackathon updated }
+    put:
+      tags: [Admin]
+      summary: Replace any hackathon regardless of organizer (requires hackathons.manage)
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Hackathon updated }
+  /admin/hackathons/{hackathonId}/registrations:
+    get:
+      tags: [Admin]
+      summary: List registrants and submissions for any hackathon (requires hackathons.manage)
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Registration list }
+  /admin/hackathons/{hackathonId}/winners:
+    post:
+      tags: [Admin]
+      summary: Declare a winner for any hackathon regardless of organizer (requires hackathons.manage)
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Winner declared }
+  /admin/hackathons/{hackathonId}/gallery-images:
+    get:
+      tags: [Admin]
+      summary: List gallery items (photos/videos) for any hackathon (requires hackathons.manage)
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Gallery image list }
+    post:
+      tags: [Admin]
+      summary: Add a gallery photo or video (by URL) to any hackathon (requires hackathons.manage)
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Gallery image added }
+  /admin/hackathons/{hackathonId}/gallery-images/{imageId}:
+    delete:
+      tags: [Admin]
+      summary: Delete a gallery image from any hackathon (requires hackathons.manage)
+      parameters:
+        - in: path
+          name: hackathonId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: imageId
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Gallery image deleted }
   /admin/hackathons/{hackathonId}/cancel:
     post:
       tags: [Admin]
@@ -1129,6 +1308,17 @@ paths:
       summary: Create checkout order
       responses:
         '201': { description: Order created }
+  /checkout/orders/{orderId}:
+    get:
+      tags: [Payments]
+      summary: Get an order's current status plus its latest payment attempt
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Order detail }
   /checkout/orders/{orderId}/apply-coupon:
     post:
       tags: [Payments]
