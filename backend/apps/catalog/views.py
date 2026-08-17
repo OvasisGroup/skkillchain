@@ -816,8 +816,15 @@ class AdminCourseListView(generics.ListCreateAPIView):
         "permission.",
         examples=[OpenApiExample("Replace course", value=_COURSE_WRITE_EXAMPLE, request_only=True)],
     ),
+    delete=extend_schema(
+        tags=["Admin"],
+        description="Deletes any course and its curriculum (sections, lessons, quizzes, "
+        "assignments), regardless of owner or status. Blocked with a 400 if the course "
+        "has any enrollments — unenroll students first. Requires the courses.manage "
+        "permission.",
+    ),
 )
-class AdminCourseDetailView(generics.RetrieveUpdateAPIView):
+class AdminCourseDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [HasPermission]
     required_permission = "courses.manage"
     lookup_url_kwarg = "id"
@@ -844,6 +851,27 @@ class AdminCourseDetailView(generics.RetrieveUpdateAPIView):
             from .tasks import notify_course_update
 
             notify_course_update.delay(str(course.id))
+
+    def destroy(self, request, *args, **kwargs):
+        course = self.get_object()
+        if course.enrollments.exists():
+            raise ValidationError(
+                "Cannot delete a course that has enrolled students. Unenroll them first."
+            )
+        return super().destroy(request, *args, **kwargs)
+
+    def perform_destroy(self, instance):
+        course_id = instance.id
+        title = instance.title
+        instance.delete()
+        record_event(
+            actor=self.request.user,
+            action="course.admin_delete",
+            entity_type="Course",
+            entity_id=course_id,
+            request=self.request,
+            payload={"title": title},
+        )
 
 
 @extend_schema(

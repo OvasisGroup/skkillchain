@@ -494,3 +494,34 @@ class TestAdminCourseManagement:
         )
 
         assert response.status_code == 403
+
+    def test_admin_can_delete_course(self, admin_client, instructor):
+        course = Course.objects.create(owner=instructor, title="To Delete")
+
+        response = admin_client.delete(f"/api/v1/admin/courses/{course.id}/")
+
+        assert response.status_code == 204
+        assert not Course.objects.filter(id=course.id).exists()
+
+    def test_delete_blocked_when_course_has_enrollments(
+        self, admin_client, instructor, django_user_model
+    ):
+        from apps.learning.models import Enrollment
+
+        course = _published_course(instructor, title="Live Course")
+        student = django_user_model.objects.create_user(email="enrolled@example.com", password="x")
+        Enrollment.objects.create(student=student, course=course)
+
+        response = admin_client.delete(f"/api/v1/admin/courses/{course.id}/")
+
+        assert response.status_code == 400
+        assert Course.objects.filter(id=course.id).exists()
+
+    def test_non_admin_gets_403_on_delete(self, api_client, instructor):
+        course = _published_course(instructor, title="Live Course")
+        api_client.force_authenticate(user=instructor)
+
+        response = api_client.delete(f"/api/v1/admin/courses/{course.id}/")
+
+        assert response.status_code == 403
+        assert Course.objects.filter(id=course.id).exists()

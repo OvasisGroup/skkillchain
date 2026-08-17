@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { authInputClass, authLabelClass } from "@/components/AuthCard";
 import { ErrorState, LoadingState } from "@/components/dashboard/DashboardStates";
 import { Panel } from "@/components/dashboard/Panel";
 import { StringListInput } from "@/components/dashboard/StringListInput";
 import { CourseCoverImage } from "@/components/dashboard/course-builder/CourseCoverImage";
 import {
+  deleteAdminCourse,
   getAdminCourse,
   notifyCourseRecipients,
   updateAdminCourse,
@@ -158,6 +159,8 @@ export default function AdminCourseEditPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -249,19 +252,53 @@ export default function AdminCourseEditPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!accessToken || !course) return;
+    if (
+      !window.confirm(
+        `Delete "${course.title}"? This permanently removes its curriculum and cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteAdminCourse(course.id, accessToken);
+      router.push("/dashboard/courses");
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message_ : "Couldn't delete this course.");
+      setDeleting(false);
+    }
+  }
+
   if (loadError && !course) return <ErrorState message={loadError} />;
   if (!course) return <LoadingState label="Loading course…" />;
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <div>
-        <button
-          type="button"
-          onClick={() => router.push("/dashboard/courses")}
-          className="flex items-center gap-1.5 text-sm text-foreground/50 hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to courses
-        </button>
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard/courses")}
+            className="flex items-center gap-1.5 text-sm text-foreground/50 hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to courses
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex items-center gap-1.5 rounded-full border border-rose-500/30 px-3 py-1.5 text-xs font-medium text-rose-400 transition-colors hover:bg-rose-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {deleting ? "Deleting…" : "Delete course"}
+          </button>
+        </div>
+        {deleteError && (
+          <p className="mt-2 rounded-lg bg-red-500/10 p-3 text-sm text-red-400">{deleteError}</p>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold text-foreground">{course.title}</h1>

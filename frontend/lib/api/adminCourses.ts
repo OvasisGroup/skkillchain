@@ -88,6 +88,10 @@ export function uploadAdminCourseCoverImage(
   });
 }
 
+export function deleteAdminCourse(courseId: string, token: string): Promise<void> {
+  return apiFetch<void>(`/admin/courses/${courseId}/`, { method: "DELETE", token });
+}
+
 export type NotifyAudience = "instructor" | "students" | "both";
 
 export interface NotifyResult {

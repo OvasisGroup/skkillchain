@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { ErrorState, LoadingState } from "@/components/dashboard/DashboardStates";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { listAdminCourses } from "@/lib/api/adminCourses";
+import { deleteAdminCourse, listAdminCourses } from "@/lib/api/adminCourses";
 import { ApiError } from "@/lib/api/client";
 import type { Course } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -28,6 +28,8 @@ export default function AdminCoursesPage() {
   const [status, setStatus] = useState("all");
   const [q, setQ] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -45,6 +47,23 @@ export default function AdminCoursesPage() {
       cancelled = true;
     };
   }, [accessToken, status, q]);
+
+  async function handleDelete(course: Course) {
+    if (!accessToken) return;
+    if (!window.confirm(`Delete "${course.title}"? This permanently removes its curriculum and cannot be undone.`)) {
+      return;
+    }
+    setDeletingId(course.id);
+    setDeleteError(null);
+    try {
+      await deleteAdminCourse(course.id, accessToken);
+      setCourses((prev) => prev?.filter((c) => c.id !== course.id) ?? prev);
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message_ : "Couldn't delete this course.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -88,6 +107,7 @@ export default function AdminCoursesPage() {
       </div>
 
       {error && <ErrorState message={error} />}
+      {deleteError && <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">{deleteError}</div>}
       {!error && !courses && <LoadingState label="Loading courses…" />}
       {!error && courses && (
         <DataTable
@@ -121,6 +141,21 @@ export default function AdminCoursesPage() {
             {
               header: "Published",
               cell: (c) => (c.published_at ? new Date(c.published_at).toLocaleDateString() : "—"),
+            },
+            {
+              header: "",
+              cell: (c) => (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(c)}
+                  disabled={deletingId === c.id}
+                  aria-label={`Delete ${c.title}`}
+                  className="rounded-full p-1.5 text-foreground/40 transition-colors hover:bg-rose-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              ),
+              className: "text-right",
             },
           ]}
         />

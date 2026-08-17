@@ -1690,6 +1690,16 @@ paths:
           schema: { type: string }
       responses:
         '200': { description: Course updated }
+    delete:
+      tags: [Admin]
+      summary: Delete any course and its curriculum (blocked if it has enrollments)
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Course deleted }
   /admin/courses/{courseId}/notify:
     post:
       tags: [Admin]
