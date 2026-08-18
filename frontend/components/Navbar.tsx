@@ -11,10 +11,11 @@ import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
 import { UserMenu } from "./UserMenu";
 
-const NAV_LINKS = [
+const NAV_LINKS: { href: string; label: string; badge?: string }[] = [
   { href: "/courses", label: "Courses" },
   { href: "/live-sessions", label: "Live Sessions" },
   { href: "/hackathons", label: "Hackathons" },
+  { href: "/changamka", label: "Changamka", badge: "New" },
   { href: "/#for-instructors", label: "For Instructors" },
 ];
 
@@ -47,9 +48,14 @@ export function Navbar() {
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-foreground/60 transition-colors hover:text-foreground"
+              className="flex items-center gap-1.5 text-sm font-medium text-foreground/60 transition-colors hover:text-foreground"
             >
               {link.label}
+              {link.badge && (
+                <span className="rounded-full bg-teal-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-400">
+                  {link.badge}
+                </span>
+              )}
             </Link>
           ))}
         </div>
@@ -127,9 +133,14 @@ export function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className="text-sm font-medium text-foreground/80"
+                className="flex items-center gap-1.5 text-sm font-medium text-foreground/80"
               >
                 {link.label}
+                {link.badge && (
+                  <span className="rounded-full bg-teal-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-400">
+                    {link.badge}
+                  </span>
+                )}
               </Link>
             ))}
             <hr className="border-border" />
