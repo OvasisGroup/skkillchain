@@ -6,24 +6,19 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
     title: "Platform",
     links: [
       { label: "Browse courses", href: "/courses" },
-      { label: "For instructors", href: "/#for-instructors" },
+      { label: "For instructors", href: "/instructors" },
       { label: "Live sessions", href: "/live-sessions" },
     ],
   },
   {
     title: "Company",
-    links: [
-      { label: "About", href: "/about" },
-      { label: "Careers", href: "/#careers" },
-      { label: "API docs", href: "http://localhost:8000/api/v1/docs/" },
-    ],
+    links: [{ label: "About", href: "/about" }],
   },
   {
     title: "Support",
     links: [
-      { label: "Help center", href: "/#help" },
-      { label: "Contact us", href: "/#contact" },
-      { label: "Status", href: "/#status" },
+      { label: "Help center", href: "/help" },
+      { label: "Contact us", href: "/contact" },
     ],
   },
   {
