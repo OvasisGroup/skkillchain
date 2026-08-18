@@ -6,13 +6,15 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
     title: "Platform",
     links: [
       { label: "Browse courses", href: "/courses" },
-      { label: "For instructors", href: "/instructors" },
       { label: "Live sessions", href: "/live-sessions" },
     ],
   },
   {
     title: "Company",
-    links: [{ label: "About", href: "/about" }],
+    links: [
+      { label: "About", href: "/about" },
+      { label: "For instructors", href: "/instructors" },
+    ],
   },
   {
     title: "Support",
