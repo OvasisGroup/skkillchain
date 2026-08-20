@@ -48,6 +48,19 @@ export function GoogleSignInButton({
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const [scriptReady, setScriptReady] = useState(false);
+  const [width, setWidth] = useState(384);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width > 0) {
+        setWidth(Math.min(384, Math.floor(entry.contentRect.width)));
+      }
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!scriptReady || !containerRef.current) return;
@@ -68,14 +81,14 @@ export function GoogleSignInButton({
       size: "large",
       text: "continue_with",
       shape: "pill",
-      width: "384",
+      width: String(width),
     });
     // onToken/onError are recreated every render by the caller; re-running
     // this on their identity change would just re-render an identical
-    // button, so only script readiness and theme (which changes the
-    // button's actual appearance) are real dependencies.
+    // button, so only script readiness, theme, and measured width (which
+    // change the button's actual appearance) are real dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scriptReady, theme]);
+  }, [scriptReady, theme, width]);
 
   if (!CLIENT_ID) return null;
 
