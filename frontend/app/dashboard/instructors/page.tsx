@@ -45,7 +45,7 @@ export default function AdminInstructorsPage() {
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Search by email…"
+        placeholder="Search by name or email…"
         className="w-64 rounded-full border border-border-strong bg-surface px-3.5 py-1.5 text-sm text-foreground focus:border-teal-400 focus:outline-none"
       />
 

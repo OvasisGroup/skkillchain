@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 from rest_framework import generics
@@ -41,12 +42,18 @@ _ADMIN_USER_EXAMPLE = {
 @extend_schema(
     tags=["Admin"],
     parameters=[
-        OpenApiParameter("email", str, description="Case-insensitive substring filter on email."),
+        OpenApiParameter(
+            "email",
+            str,
+            description="Case-insensitive substring filter matched against email, first name, "
+            "or last name — e.g. 'mary' matches mary.usaji@gmail.com and matches a profile "
+            "first_name of 'Mary' equally, so an admin can search by either.",
+        ),
         OpenApiParameter(
             "role", str, description="Filter to users holding this role code, e.g. 'instructor'."
         ),
     ],
-    description="Lists platform users, optionally filtered by an email substring and/or role.",
+    description="Lists platform users, optionally filtered by an email/name substring and/or role.",
     examples=[OpenApiExample("User", value=_ADMIN_USER_EXAMPLE, response_only=True)],
 )
 class AdminUserListView(generics.ListAPIView):
@@ -56,9 +63,18 @@ class AdminUserListView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = User.objects.select_related("profile")
-        email = self.request.query_params.get("email")
-        if email:
-            queryset = queryset.filter(email__icontains=email)
+        search = self.request.query_params.get("email")
+        if search:
+            # Named "email" for backwards compatibility with existing callers,
+            # but matched against the profile's name too — an admin naturally
+            # searches by the name shown in the UI, not the email address
+            # (e.g. a "Mary Usaji" search shouldn't come up empty just
+            # because her email is mary.usaji@gmail.com).
+            queryset = queryset.filter(
+                Q(email__icontains=search)
+                | Q(profile__first_name__icontains=search)
+                | Q(profile__last_name__icontains=search)
+            ).distinct()
         role = self.request.query_params.get("role")
         if role:
             queryset = queryset.filter(user_roles__role__code=role).distinct()

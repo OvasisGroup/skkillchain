@@ -50,6 +50,15 @@ class TestAdminUsers:
         emails = [u["email"] for u in response.data["results"]]
         assert plain_user.email in emails
 
+    def test_filter_by_name_matches_even_when_email_does_not(self, admin_client, plain_user):
+        plain_user.profile.first_name = "Mary Usaji"
+        plain_user.profile.save()
+
+        response = admin_client.get("/api/v1/admin/users/", {"email": "Mary Usaji"})
+
+        emails = [u["email"] for u in response.data["results"]]
+        assert plain_user.email in emails
+
     def test_suspend_and_reinstate(self, admin_client, plain_user):
         suspend = admin_client.patch(
             f"/api/v1/admin/users/{plain_user.id}/status/", {"is_active": False}, format="json"

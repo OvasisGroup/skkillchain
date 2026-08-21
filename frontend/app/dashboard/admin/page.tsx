@@ -191,7 +191,7 @@ export default function AdminDashboardPage() {
             type="text"
             value={emailSearch}
             onChange={(e) => setEmailSearch(e.target.value)}
-            placeholder="Search by email…"
+            placeholder="Search by name or email…"
             className="w-full rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-sm text-foreground focus:border-teal-400 focus:outline-none sm:w-64"
           />
           <button
