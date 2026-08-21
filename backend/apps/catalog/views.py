@@ -348,15 +348,19 @@ class TagDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 def _instructor_queryset():
-    # An "instructor" here means "has at least one published course" —
-    # the platform's instructor role is granted on application approval
-    # (apps.moderation.services.approve_instructor_application) before
-    # they've necessarily published anything, so role membership alone
-    # would surface empty profiles on a public directory. Annotated count
-    # is scoped to published courses too, so it always matches what
-    # get_courses() on InstructorDetailSerializer actually lists.
-    # Prefetched onto `_published_courses` so InstructorListSerializer.get_categories()
-    # and InstructorDetailSerializer.get_courses() can read from it in Python
+    # An "instructor" here means "holds the instructor role" OR "has at
+    # least one published course" — the role is granted on application
+    # approval (apps.moderation.services.approve_instructor_application)
+    # before they've necessarily published anything, so a newly-approved
+    # instructor still shows up (with 0 courses) instead of being invisible
+    # on the public directory until their first course goes live. The
+    # published-course half of the union stays so a course owner who
+    # predates role tracking (or was never granted the role directly)
+    # still surfaces too. Annotated count is scoped to published courses,
+    # so it always matches what get_courses() on InstructorDetailSerializer
+    # actually lists. Prefetched onto `_published_courses` so
+    # InstructorListSerializer.get_categories() and
+    # InstructorDetailSerializer.get_courses() can read from it in Python
     # instead of each issuing its own query per instructor (see catalog/serializers.py).
     published_courses = Prefetch(
         "owned_courses",
@@ -364,7 +368,9 @@ def _instructor_queryset():
         to_attr="_published_courses",
     )
     return (
-        User.objects.filter(owned_courses__status=Course.STATUS_PUBLISHED)
+        User.objects.filter(
+            Q(user_roles__role__code="instructor") | Q(owned_courses__status=Course.STATUS_PUBLISHED)
+        )
         .select_related("profile")
         .prefetch_related(published_courses)
         .annotate(
@@ -381,8 +387,8 @@ def _instructor_queryset():
 
 @extend_schema(
     tags=["Courses"],
-    description="Lists every instructor with at least one published course, newest "
-    "instructor first — the public instructor directory.",
+    description="Lists every instructor — holding the instructor role, or owning at least "
+    "one published course — newest first. The public instructor directory.",
     examples=[
         OpenApiExample(
             "Instructor",
@@ -412,17 +418,18 @@ class InstructorListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     queryset = _instructor_queryset()
     # Deliberately unpaginated (tests/api/test_catalog.py::TestInstructorDirectory
-    # asserts a flat list) — the directory is scoped to users with at least one
-    # published course, which keeps it far smaller than the full user table.
-    # If this grows large enough to matter, paginating it is a frontend-visible
-    # API change, not just a backend one.
+    # asserts a flat list) — the directory is scoped to instructors and published
+    # course owners, which keeps it far smaller than the full user table. If this
+    # grows large enough to matter, paginating it is a frontend-visible API
+    # change, not just a backend one.
     pagination_class = None
 
 
 @extend_schema(
     tags=["Courses"],
     description="Gets one instructor's public profile plus every course they've published. "
-    "404s for a user with no published courses, same as a nonexistent instructor.",
+    "404s for a user who neither holds the instructor role nor owns a published course, "
+    "same as a nonexistent instructor.",
 )
 class InstructorDetailView(generics.RetrieveAPIView):
     serializer_class = InstructorDetailSerializer

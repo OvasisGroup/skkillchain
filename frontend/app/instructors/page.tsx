@@ -47,7 +47,7 @@ export default async function InstructorsPage() {
         <div className="mt-16 flex flex-col items-center rounded-2xl border border-dashed border-border-strong py-20 text-center">
           <Users className="h-10 w-10 text-foreground/30" />
           <p className="mt-4 text-sm text-foreground/50">
-            No instructors have published a course yet — check back soon.
+            No instructors yet — check back soon.
           </p>
         </div>
       )}

@@ -1,5 +1,6 @@
 import pytest
 
+from apps.authorization.models import Role, UserRole
 from apps.catalog.models import Category, Course
 from apps.content.models import Lesson, Section
 
@@ -261,6 +262,21 @@ class TestInstructorDirectory:
 
         assert response.status_code == 200
         assert response.data == []
+
+    def test_includes_role_holder_with_no_courses_yet(self, api_client, instructor):
+        UserRole.objects.create(user=instructor, role=Role.objects.get(code="instructor"))
+
+        response = api_client.get("/api/v1/instructors/")
+
+        assert response.status_code == 200
+        emails = [item["email"] for item in response.data]
+        assert emails == [instructor.email]
+        assert response.data[0]["published_course_count"] == 0
+        assert response.data[0]["categories"] == []
+
+        detail = api_client.get(f"/api/v1/instructors/{instructor.id}/")
+        assert detail.status_code == 200
+        assert detail.data["courses"] == []
 
     def test_course_count_only_counts_published(self, api_client, instructor):
         _published_course(instructor, title="Published One")
