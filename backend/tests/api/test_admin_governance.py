@@ -3,6 +3,7 @@ from rest_framework.test import APIClient
 
 from apps.audit.models import AuditLog
 from apps.authorization.models import Role, UserRole
+from apps.catalog.models import Course
 from apps.notifications.models import EmailTemplate, NotificationTemplate
 from apps.support.models import SupportTicket
 
@@ -46,6 +47,16 @@ class TestAdminUsers:
 
     def test_list_and_filter_by_email(self, admin_client, plain_user):
         response = admin_client.get("/api/v1/admin/users/", {"email": "plain"})
+
+        emails = [u["email"] for u in response.data["results"]]
+        assert plain_user.email in emails
+
+    def test_filter_by_instructor_role_includes_course_owners_without_the_role(
+        self, admin_client, plain_user
+    ):
+        Course.objects.create(owner=plain_user, title="Orphaned Draft")
+
+        response = admin_client.get("/api/v1/admin/users/", {"role": "instructor"})
 
         emails = [u["email"] for u in response.data["results"]]
         assert plain_user.email in emails

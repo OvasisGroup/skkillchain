@@ -50,7 +50,13 @@ _ADMIN_USER_EXAMPLE = {
             "first_name of 'Mary' equally, so an admin can search by either.",
         ),
         OpenApiParameter(
-            "role", str, description="Filter to users holding this role code, e.g. 'instructor'."
+            "role",
+            str,
+            description="Filter to users holding this role code, e.g. 'instructor'. For "
+            "'instructor' specifically, also includes users who own at least one course but "
+            "were never granted the role directly (e.g. a course created for them by an admin) "
+            "— so this always reflects everyone who should show up as an instructor, not just "
+            "role assignments.",
         ),
     ],
     description="Lists platform users, optionally filtered by an email/name substring and/or role.",
@@ -76,7 +82,16 @@ class AdminUserListView(generics.ListAPIView):
                 | Q(profile__last_name__icontains=search)
             ).distinct()
         role = self.request.query_params.get("role")
-        if role:
+        if role == "instructor":
+            # Role membership alone misses a user who owns a course but was
+            # never granted the role (e.g. an admin created a draft course
+            # on their behalf via AdminCourseCreateInput.owner_id before
+            # onboarding them) — union both so the admin instructor list
+            # never silently hides someone who clearly needs managing.
+            queryset = queryset.filter(
+                Q(user_roles__role__code=role) | Q(owned_courses__isnull=False)
+            ).distinct()
+        elif role:
             queryset = queryset.filter(user_roles__role__code=role).distinct()
         return queryset
 
