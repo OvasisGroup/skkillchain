@@ -369,7 +369,8 @@ def _instructor_queryset():
     )
     return (
         User.objects.filter(
-            Q(user_roles__role__code="instructor") | Q(owned_courses__status=Course.STATUS_PUBLISHED)
+            Q(user_roles__role__code="instructor")
+            | Q(owned_courses__status=Course.STATUS_PUBLISHED)
         )
         .select_related("profile")
         .prefetch_related(published_courses)
