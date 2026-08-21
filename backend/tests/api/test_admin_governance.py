@@ -140,6 +140,27 @@ class TestAdminUsers:
 
         assert response.status_code == 403
 
+    def test_revoke_instructor_role(self, admin_client, plain_user):
+        UserRole.objects.create(user=plain_user, role=Role.objects.get(code="instructor"))
+
+        response = admin_client.delete(f"/api/v1/admin/users/{plain_user.id}/roles/instructor/")
+
+        assert response.status_code == 204
+        assert not UserRole.objects.filter(user=plain_user, role__code="instructor").exists()
+
+    def test_revoke_role_the_user_never_held_is_404(self, admin_client, plain_user):
+        response = admin_client.delete(f"/api/v1/admin/users/{plain_user.id}/roles/instructor/")
+
+        assert response.status_code == 404
+
+    def test_revoke_role_forbidden_for_non_admin(self, plain_client, plain_user):
+        UserRole.objects.create(user=plain_user, role=Role.objects.get(code="instructor"))
+
+        response = plain_client.delete(f"/api/v1/admin/users/{plain_user.id}/roles/instructor/")
+
+        assert response.status_code == 403
+        assert UserRole.objects.filter(user=plain_user, role__code="instructor").exists()
+
 
 class TestAdminTemplates:
     def test_notification_template_list_and_update(self, admin_client):

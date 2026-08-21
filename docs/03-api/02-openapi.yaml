@@ -1663,6 +1663,21 @@ paths:
           schema: { type: string }
       responses:
         '200': { description: Avatar updated }
+  /admin/users/{userId}/roles/{roleCode}:
+    delete:
+      tags: [Admin]
+      summary: Revoke a platform-scoped role from a user (e.g. removing them as an instructor)
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: roleCode
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Role revoked }
   /admin/instructors:
     get:
       tags: [Admin]

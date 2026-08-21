@@ -1,11 +1,13 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
-from rest_framework import generics
+from rest_framework import generics, status
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.audit.services import record_event
+from apps.authorization.models import Role, UserRole
 from apps.authorization.permissions import HasPermission
 
 from .admin_serializers import (
@@ -195,3 +197,38 @@ class AdminUserAvatarUploadView(APIView):
             request=request,
         )
         return Response(AdminProfileSerializer(profile).data)
+
+
+@extend_schema(
+    tags=["Admin"],
+    responses={204: None},
+    description="Revokes a platform-scoped role from a user — e.g. removing someone from the "
+    "admin instructors list. Only the role grant is removed: courses they already own aren't "
+    "touched (Course.owner is protected against deletion) and they keep editing them, since "
+    "curriculum authoring is scoped by ownership, not role. An admin can no longer pick this "
+    "user as the owner of a *new* course via AdminCourseWriteSerializer's owner_id until the "
+    "role is granted again. 404s if the user never held this role.",
+)
+class AdminUserRoleRevokeView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = "users.manage"
+    throttle_scope = "admin-write"
+
+    def delete(self, request, user_id, role_code):
+        user = get_object_or_404(User, pk=user_id)
+        role = get_object_or_404(Role, code=role_code)
+        deleted, _ = UserRole.objects.filter(
+            user=user, role=role, context_type=Role.SCOPE_PLATFORM, context_id=None
+        ).delete()
+        if not deleted:
+            raise NotFound(f"{user.email} does not hold the '{role_code}' role.")
+
+        record_event(
+            actor=request.user,
+            action="user.role_revoke",
+            entity_type="UserRole",
+            entity_id=user.id,
+            request=request,
+            payload={"role": role_code},
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)

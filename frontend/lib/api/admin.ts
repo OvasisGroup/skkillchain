@@ -55,3 +55,14 @@ export function uploadAdminUserAvatar(userId: string, file: File, token: string)
     body: form,
   });
 }
+
+// Revokes a platform-scoped role (e.g. "instructor") from a user. Only the
+// role grant is removed — courses they already own aren't touched, since
+// Course.owner is protected against deletion and curriculum authoring is
+// scoped by ownership, not role (see AdminUserRoleRevokeView).
+export function revokeUserRole(userId: string, roleCode: RoleCode, token: string): Promise<void> {
+  return apiFetch<void>(`/admin/users/${userId}/roles/${roleCode}/`, {
+    method: "DELETE",
+    token,
+  });
+}

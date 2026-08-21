@@ -19,4 +19,9 @@ urlpatterns = [
         admin_views.AdminUserAvatarUploadView.as_view(),
         name="admin-user-avatar",
     ),
+    path(
+        "admin/users/<uuid:user_id>/roles/<slug:role_code>/",
+        admin_views.AdminUserRoleRevokeView.as_view(),
+        name="admin-user-role-revoke",
+    ),
 ]
