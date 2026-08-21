@@ -65,6 +65,61 @@ class TestAdminUsers:
         plain_user.refresh_from_db()
         assert plain_user.is_active is True
 
+    def test_list_includes_nested_profile(self, admin_client, plain_user):
+        response = admin_client.get("/api/v1/admin/users/", {"email": "plain"})
+
+        assert response.data["results"][0]["profile"]["bio"] == ""
+
+    def test_get_and_update_profile(self, admin_client, plain_user):
+        get_response = admin_client.get(f"/api/v1/admin/users/{plain_user.id}/profile/")
+        assert get_response.status_code == 200
+        assert get_response.data["bio"] == ""
+
+        update_response = admin_client.patch(
+            f"/api/v1/admin/users/{plain_user.id}/profile/",
+            {"first_name": "Ada", "bio": "Loves distributed systems."},
+            format="json",
+        )
+        assert update_response.status_code == 200
+        assert update_response.data["first_name"] == "Ada"
+        assert update_response.data["bio"] == "Loves distributed systems."
+        plain_user.refresh_from_db()
+        assert plain_user.profile.bio == "Loves distributed systems."
+
+    def test_update_profile_forbidden_for_non_admin(self, plain_client, plain_user):
+        response = plain_client.patch(
+            f"/api/v1/admin/users/{plain_user.id}/profile/", {"bio": "hi"}, format="json"
+        )
+
+        assert response.status_code == 403
+
+    def test_upload_avatar(self, admin_client, plain_user):
+        import io
+
+        from PIL import Image
+
+        buffer = io.BytesIO()
+        Image.new("RGB", (10, 10)).save(buffer, format="PNG")
+        buffer.seek(0)
+        buffer.name = "avatar.png"
+
+        response = admin_client.post(
+            f"/api/v1/admin/users/{plain_user.id}/avatar/",
+            {"avatar": buffer},
+            format="multipart",
+        )
+
+        assert response.status_code == 200
+        plain_user.refresh_from_db()
+        assert plain_user.profile.avatar
+
+    def test_upload_avatar_forbidden_for_non_admin(self, plain_client, plain_user):
+        response = plain_client.post(
+            f"/api/v1/admin/users/{plain_user.id}/avatar/", {}, format="multipart"
+        )
+
+        assert response.status_code == 403
+
 
 class TestAdminTemplates:
     def test_notification_template_list_and_update(self, admin_client):

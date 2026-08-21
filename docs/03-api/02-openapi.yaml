@@ -1631,6 +1631,38 @@ paths:
           schema: { type: string }
       responses:
         '200': { description: Status updated }
+  /admin/users/{userId}/profile:
+    get:
+      tags: [Admin]
+      summary: View a user's profile (name, bio, avatar, social links) on their behalf
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Profile detail }
+    patch:
+      tags: [Admin]
+      summary: Update a user's profile (name, bio, locale, timezone, social links) on their behalf
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Profile updated }
+  /admin/users/{userId}/avatar:
+    post:
+      tags: [Admin]
+      summary: Upload or replace a user's avatar image on their behalf
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Avatar updated }
   /admin/instructors:
     get:
       tags: [Admin]

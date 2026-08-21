@@ -609,6 +609,7 @@ export interface AdminUser {
   is_active: boolean;
   is_staff: boolean;
   created_at: string;
+  profile: Profile;
 }
 
 export interface AuditLog {

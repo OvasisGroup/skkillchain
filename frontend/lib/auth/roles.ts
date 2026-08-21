@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Trophy,
+  Users,
 } from "lucide-react";
 import type { Me, RoleCode } from "@/lib/api/types";
 
@@ -75,6 +76,12 @@ export const DASHBOARD_NAV: DashboardNavItem[] = [
     path: "/dashboard/courses",
     label: "Courses",
     icon: LibraryBig,
+    visible: (u) => isAdmin(u),
+  },
+  {
+    path: "/dashboard/instructors",
+    label: "Instructors",
+    icon: Users,
     visible: (u) => isAdmin(u),
   },
   { path: "/dashboard/admin", label: "Admin", icon: ShieldAlert, visible: (u) => isAdmin(u) },

@@ -7,14 +7,34 @@ from rest_framework.views import APIView
 from apps.audit.services import record_event
 from apps.authorization.permissions import HasPermission
 
-from .admin_serializers import AdminUserSerializer, AdminUserStatusUpdateSerializer
+from .admin_serializers import (
+    AdminAvatarUploadSerializer,
+    AdminProfileSerializer,
+    AdminUserSerializer,
+    AdminUserStatusUpdateSerializer,
+)
 from .models import User
+
+_ADMIN_PROFILE_EXAMPLE = {
+    "first_name": "",
+    "last_name": "",
+    "bio": "",
+    "avatar": "",
+    "locale": "en",
+    "timezone": "UTC",
+    "linkedin_url": "",
+    "twitter_url": "",
+    "github_url": "",
+    "youtube_url": "",
+    "website_url": "",
+}
 
 _ADMIN_USER_EXAMPLE = {
     "id": "b6a5b6c0-9b1e-4c9a-9b7a-1f2e3d4c5b6a",
     "email": "student@example.com",
     "is_active": True,
     "created_at": "2026-01-15T09:00:00Z",
+    "profile": _ADMIN_PROFILE_EXAMPLE,
 }
 
 
@@ -35,7 +55,7 @@ class AdminUserListView(generics.ListAPIView):
     required_permission = "users.manage"
 
     def get_queryset(self):
-        queryset = User.objects.all()
+        queryset = User.objects.select_related("profile")
         email = self.request.query_params.get("email")
         if email:
             queryset = queryset.filter(email__icontains=email)
@@ -80,3 +100,67 @@ class AdminUserStatusUpdateView(APIView):
             request=request,
         )
         return Response(AdminUserSerializer(user).data)
+
+
+@extend_schema(
+    tags=["Admin"],
+    request=AdminProfileSerializer,
+    responses={200: AdminProfileSerializer},
+    description="Views or updates a user's profile (name, bio, locale, timezone, social "
+    "links) on their behalf — for maintaining instructor details from the admin dashboard. "
+    "To change the avatar image itself, use POST .../avatar/ instead — a file can't travel "
+    "through this JSON endpoint.",
+    examples=[OpenApiExample("Profile", value=_ADMIN_PROFILE_EXAMPLE, response_only=True)],
+)
+class AdminUserProfileView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = "users.manage"
+    throttle_scope = "admin-write"
+
+    def get(self, request, user_id):
+        user = get_object_or_404(User, pk=user_id)
+        return Response(AdminProfileSerializer(user.profile).data)
+
+    def patch(self, request, user_id):
+        user = get_object_or_404(User, pk=user_id)
+        serializer = AdminProfileSerializer(user.profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        record_event(
+            actor=request.user,
+            action="user.profile_update",
+            entity_type="Profile",
+            entity_id=user.id,
+            request=request,
+        )
+        return Response(serializer.data)
+
+
+@extend_schema(
+    tags=["Admin"],
+    request=AdminAvatarUploadSerializer,
+    responses={200: AdminProfileSerializer},
+    description="Uploads (or replaces) a user's avatar image on their behalf. Send as "
+    "multipart/form-data with a single 'avatar' file field.",
+)
+class AdminUserAvatarUploadView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = "users.manage"
+    throttle_scope = "admin-write"
+
+    def post(self, request, user_id):
+        user = get_object_or_404(User, pk=user_id)
+        serializer = AdminAvatarUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        profile = user.profile
+        profile.avatar = serializer.validated_data["avatar"]
+        profile.save(update_fields=["avatar"])
+        record_event(
+            actor=request.user,
+            action="user.avatar_update",
+            entity_type="Profile",
+            entity_id=user.id,
+            request=request,
+        )
+        return Response(AdminProfileSerializer(profile).data)

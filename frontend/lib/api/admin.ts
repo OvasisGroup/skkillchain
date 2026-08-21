@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import type { AdminUser, CursorPage, RoleCode } from "./types";
+import type { AdminUser, CursorPage, Profile, RoleCode } from "./types";
 
 export function listUsers(
   token: string,
@@ -23,5 +23,35 @@ export function updateUserStatus(
     method: "PATCH",
     token,
     body: { is_active: isActive },
+  });
+}
+
+// Admin counterpart to lib/api/auth.ts's updateMe()/uploadAvatar() — same
+// split (avatar travels through its own multipart endpoint, never the JSON
+// PATCH body) but scoped by userId + the users.manage permission instead
+// of the caller's own session.
+export function getAdminUserProfile(userId: string, token: string): Promise<Profile> {
+  return apiFetch<Profile>(`/admin/users/${userId}/profile/`, { token, cache: "no-store" });
+}
+
+export function updateAdminUserProfile(
+  userId: string,
+  input: Partial<Omit<Profile, "avatar">>,
+  token: string
+): Promise<Profile> {
+  return apiFetch<Profile>(`/admin/users/${userId}/profile/`, {
+    method: "PATCH",
+    token,
+    body: input,
+  });
+}
+
+export function uploadAdminUserAvatar(userId: string, file: File, token: string): Promise<Profile> {
+  const form = new FormData();
+  form.set("avatar", file);
+  return apiFetch<Profile>(`/admin/users/${userId}/avatar/`, {
+    method: "POST",
+    token,
+    body: form,
   });
 }
