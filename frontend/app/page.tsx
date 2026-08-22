@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import { BlogHighlights } from "@/components/landing/BlogHighlights";
+import { BlogHighlightsSkeleton } from "@/components/landing/BlogHighlightsSkeleton";
 import { CapabilityStrip } from "@/components/landing/CapabilityStrip";
 import { Courses } from "@/components/landing/Courses";
 import { CoursesSkeleton } from "@/components/landing/CoursesSkeleton";
@@ -24,6 +26,9 @@ export default function Home() {
       </Suspense>
       <HowItWorks />
       <ForInstructors />
+      <Suspense fallback={<BlogHighlightsSkeleton />}>
+        <BlogHighlights />
+      </Suspense>
       <CtaBanner />
     </>
   );

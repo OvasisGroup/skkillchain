@@ -606,6 +606,83 @@ built, automated-tested (43/43 passing), and manually verified live end-to-end.
 
 ---
 
+### M14 — Blog / Content Section — done
+**Sprint**: post-launch addition — not part of the original 8-sprint plan, so there's no FR-xxx
+ID for it in [the PRD](../00-product/01-prd.md). Same shape as M13. · **Apps**: `cms`
+
+**Scope**: the `cms` app named in [Platform Structure §2](../04-platform-structure/01-platform-structure.md#2-django-app-responsibilities)
+("cms: blog, static pages, seo metadata") gets its first slice built: a blog. Any authenticated
+user can write posts (title, an optional cover image, a body, and optional tags), starting as a
+draft; publishing makes a post visible on the public `/blog` list and `/blog/{slug}` detail
+pages. Each post's detail page carries a cover image, the author's name/avatar, publish date,
+its tags, and Twitter/X + LinkedIn share links.
+
+**Built and verified end-to-end** (write → publish → publicly visible with image/tags/share
+links → moderator can force-unpublish, exercised over real HTTP against a running Postgres
+instance, not mocked):
+- `BlogPost` (`status` draft/published, `publish()`/`unpublish()` lifecycle methods — same
+  pattern as `Hackathon.publish()`/`cancel()`), `BlogTag` (a dedicated model, not a reuse of
+  `catalog.Tag` — that one is course-scoped via `course_tags`, and blog wanted its own
+  independent vocabulary rather than a cross-app coupling).
+- **Tags are optional and idempotent-create**: `tags` is a blank-able M2M, and
+  `POST /blog/tags/` returns the existing tag on a case-insensitive name match instead of
+  erroring — identical to `apps.catalog`'s course-tag endpoint, so any author can add a tag
+  inline while writing a post without first checking if it exists.
+- Ownership is enforced identically to `catalog.Course`/`hackathons.Hackathon`: an author only
+  ever manages their own posts (`author_id == request.user.id`, 403 otherwise); a moderation
+  override (`POST /admin/blog-posts/{id}/unpublish/`) exists separately, gated by a newly seeded
+  `cms.manage` RBAC permission (granted to `moderator`, `administrator`, `super_administrator` —
+  same seed-migration pattern as `hackathons.manage`).
+- A draft post 404s for everyone except its author when fetched by slug — same information-
+  hiding shape as `HackathonDetailView`/`CourseDetailView`, not a 403 that would confirm the
+  slug exists.
+- 26 tests in `tests/api/test_blog.py`, one negative-authz case per new endpoint per the
+  Definition of Done, 88–100% line coverage across `apps/cms/*` (95% overall). Full backend
+  suite re-run clean afterward: 563 passed, 1 skipped, no regressions elsewhere. Also manually
+  verified live: seeded a post via Django shell (including a real uploaded cover image, not just
+  a JSON field), then drove the running Next.js `/blog` and `/blog/{slug}` pages with a headless
+  browser — screenshotted the list page (card grid, image, tag-filter pills with correct active
+  state) and the detail page (hero image, author avatar-initial fallback, publish date, tags,
+  Twitter/X and LinkedIn share buttons resolving to the correct `intent`/`sharing` URLs, body
+  rendered as paragraphs) — zero browser console errors — before tearing the demo data back down.
+- OpenAPI: new `Blog`/`BlogAuthor` tags and 15 operations added to
+  [`docs/03-api/02-openapi.yaml`](../03-api/02-openapi.yaml); `drf-spectacular`'s generated
+  schema has zero warnings/errors for the new views (`BlogPostStatusEnum` added to
+  `ENUM_NAME_OVERRIDES`, same fix as `Course.status`/`Hackathon.status`); `spectral lint`
+  introduces zero new errors (228 pre-existing `operation-description` warnings across the whole
+  spec, an existing pattern predating this milestone, left as found — not fixed as a drive-by,
+  same call M13 made for its one pre-existing error).
+- Frontend: `/blog` (list, with `?tag=` filtering) and `/blog/{slug}` (detail) pages,
+  `BlogPostCard` and `ShareButtons` components, `lib/api/blog.ts`, blog entries in `sitemap.ts`,
+  and a `Blog` link in the navbar. `tsc --noEmit` and `eslint` both clean on the new/changed
+  files.
+
+**Deferred to a follow-up** (out of scope for this pass):
+- No author-facing dashboard UI — `lib/api/blog.ts` already exposes the full author CRUD +
+  publish/unpublish client functions (mirroring `organizerHackathons.ts`) for a future dashboard
+  page to call, but no page calls them yet. Posts are authored through Django Admin for now,
+  which is a legitimate stopgap CMS workflow, not a placeholder that blocks publishing.
+  `AdminBlogPostListView`/`AdminBlogPostDetailView` (moderation) are separate from this and are
+  already live.
+- Cover image upload was implemented (`ImageField`, same pattern as `Hackathon.cover_image`) and
+  was exercised end-to-end in this pass, but only via Django shell / `ContentFile`, not through
+  an actual multipart form in the UI — same caveat M13 logged for its own cover image field.
+- No notifications on publish — `apps.notifications` isn't wired in, consistent with M13.
+- No rich-text/markdown body — `body` is plain text, rendered as paragraphs split on blank
+  lines. No editor, no HTML sanitization surface (there's no HTML rendering of user content to
+  sanitize), no requirement stated a richer format.
+
+**Security checklist**: every author-only endpoint 403s a non-owner (tested per endpoint); draft
+posts 404 for everyone except their author, identical to a nonexistent post; the moderation
+override requires the `cms.manage` permission and 403s without it (tested); tag creation
+requires authentication (401 anonymous, tested).
+
+**Exit criteria**: met — "write → publish → publicly visible with image/tags/share links →
+moderator can force-unpublish" is built, automated-tested (26/26 passing, 563/564 backend-wide),
+and manually verified live end-to-end including the actual rendered pages.
+
+---
+
 ## 3. Milestone Dependencies
 
 ```mermaid

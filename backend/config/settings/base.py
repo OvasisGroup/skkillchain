@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.content",
     "apps.learning",
     "apps.hackathons",
+    "apps.cms",
     "apps.live_sessions",
     "apps.assessments",
     "apps.billing",
@@ -309,6 +310,7 @@ SPECTACULAR_SETTINGS = {
         "HackathonRegistrationStatusEnum": (
             "apps.hackathons.models.HackathonRegistration.STATUS_CHOICES"
         ),
+        "BlogPostStatusEnum": "apps.cms.models.BlogPost.STATUS_CHOICES",
     },
 }
 

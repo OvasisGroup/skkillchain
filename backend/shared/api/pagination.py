@@ -66,6 +66,14 @@ class RegisteredAtCursorPagination(DefaultCursorPagination):
     ordering = "-registered_at"
 
 
+class PublishedAtCursorPagination(DefaultCursorPagination):
+    """For the public BlogPost list — newest published first. Only ever
+    applied to an already-published-only queryset, so `published_at` is
+    never null (see BlogPostListView)."""
+
+    ordering = "-published_at"
+
+
 class SortOrderCursorPagination(DefaultCursorPagination):
     """For curriculum models ordered by instructor-assigned position rather than
     creation time (Section, Lesson) — ascending, since these are read in the

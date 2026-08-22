@@ -15,6 +15,8 @@ tags:
   - name: LiveSessions
   - name: Hackathons
   - name: HackathonOrganizer
+  - name: Blog
+  - name: BlogAuthor
   - name: Assessments
   - name: Payments
   - name: Messaging
@@ -1212,6 +1214,155 @@ paths:
         '200': { description: Hackathon canceled }
         '403': { description: Missing the hackathons.manage permission }
 
+  # ---------- Blog ----------
+  /blog/posts:
+    get:
+      tags: [Blog]
+      summary: List published blog posts, newest first (optionally filter by ?tag=<slug>)
+      security: []
+      parameters:
+        - in: query
+          name: tag
+          schema: { type: string }
+      responses:
+        '200': { description: Blog post list }
+  /blog/posts/{slug}:
+    get:
+      tags: [Blog]
+      summary: Get a published blog post by slug
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Blog post detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogPost'
+        '404': { description: "Draft post (unless you're the author), or nonexistent" }
+  /blog/tags:
+    get:
+      tags: [Blog]
+      summary: List all blog tags
+      security: []
+      responses:
+        '200': { description: Tag list }
+    post:
+      tags: [Blog]
+      summary: Create a tag, or return the existing one if the name (case-insensitive) already exists
+      responses:
+        '201': { description: Tag created }
+        '200': { description: Tag already existed }
+  /authors/me/blog-posts:
+    get:
+      tags: [BlogAuthor]
+      summary: List blog posts written by the current user, any status
+      responses:
+        '200': { description: Blog post list }
+    post:
+      tags: [BlogAuthor]
+      summary: Create a new blog post (starts as a draft — call publish to make it visible)
+      responses:
+        '201': { description: Blog post created }
+  /authors/me/blog-posts/{postId}:
+    get:
+      tags: [BlogAuthor]
+      summary: Get a blog post the current user wrote
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Blog post detail }
+    patch:
+      tags: [BlogAuthor]
+      summary: Update a blog post the current user wrote
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Blog post updated }
+    delete:
+      tags: [BlogAuthor]
+      summary: Delete a blog post the current user wrote
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Blog post deleted }
+  /authors/me/blog-posts/{postId}/publish:
+    post:
+      tags: [BlogAuthor]
+      summary: Publish a draft blog post the current user wrote
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Blog post published }
+        '400': { description: Already published }
+  /authors/me/blog-posts/{postId}/unpublish:
+    post:
+      tags: [BlogAuthor]
+      summary: Unpublish a blog post the current user wrote, taking it back to draft
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Blog post unpublished }
+        '400': { description: Not currently published }
+  /admin/blog-posts:
+    get:
+      tags: [Admin]
+      summary: List every blog post platform-wide, any status or author (requires cms.manage)
+      responses:
+        '200': { description: Blog post list }
+  /admin/blog-posts/{postId}:
+    get:
+      tags: [Admin]
+      summary: Get any blog post regardless of author (requires cms.manage)
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Blog post detail }
+    patch:
+      tags: [Admin]
+      summary: Update any blog post regardless of author (requires cms.manage)
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Blog post updated }
+  /admin/blog-posts/{postId}/unpublish:
+    post:
+      tags: [Admin]
+      summary: Force-unpublish any blog post (moderation override — requires cms.manage)
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Blog post unpublished }
+        '403': { description: Missing the cms.manage permission }
+
   # ---------- Assessments ----------
   /quizzes/{quizId}:
     get:
@@ -2318,3 +2469,37 @@ components:
         timezone: { type: string }
         external_meeting_id: { type: string }
         host_join_url: { type: string }
+    BlogTag:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+    BlogPost:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        slug: { type: string }
+        summary: { type: string }
+        body:
+          type: string
+          description: Only present on the detail (by-slug) response, not the list response.
+        cover_image: { type: string, nullable: true }
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/BlogTag'
+        author:
+          type: object
+          properties:
+            id: { type: string }
+            email: { type: string }
+            profile:
+              type: object
+              properties:
+                first_name: { type: string }
+                last_name: { type: string }
+                avatar: { type: string, nullable: true }
+        status: { type: string, enum: [draft, published] }
+        published_at: { type: string, format: date-time, nullable: true }

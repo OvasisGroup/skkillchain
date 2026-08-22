@@ -923,3 +923,59 @@ export interface DiscussionPost {
   body: string;
   created_at: string;
 }
+
+export type BlogPostStatus = "draft" | "published";
+
+export interface BlogTag {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface BlogAuthor {
+  id: string;
+  email: string;
+  profile: Profile;
+}
+
+// GET /blog/posts/ item shape — no `body` (see BlogPostDetail for that).
+export interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string;
+  cover_image: string | null;
+  tags: BlogTag[];
+  author: BlogAuthor;
+  status: BlogPostStatus;
+  published_at: string | null;
+}
+
+export interface BlogPostDetail extends BlogPost {
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Shape returned by the author create/update endpoint — narrower than
+// BlogPost/BlogPostDetail: no nested `author` object, tags come back as
+// full BlogTag objects for tag_ids written in.
+export interface BlogPostWriteResult {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string;
+  body: string;
+  cover_image: string | null;
+  tag_ids: BlogTag[];
+  status: BlogPostStatus;
+}
+
+export interface BlogPostCreateInput {
+  title: string;
+  summary?: string;
+  body: string;
+  tag_ids?: string[];
+}
+
+export type BlogPostUpdateInput = Partial<BlogPostCreateInput>;

@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { API_BASE_URL, apiFetch } from "@/lib/api/client";
 import { listInstructors } from "@/lib/api/instructors";
-import type { Course, CursorPage } from "@/lib/api/types";
+import type { BlogPost, Course, CursorPage } from "@/lib/api/types";
 import { absoluteUrl } from "@/lib/seo";
 
 const STATIC_ROUTES: Array<{ path: string; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"]; priority: number }> = [
@@ -9,6 +9,7 @@ const STATIC_ROUTES: Array<{ path: string; changeFrequency: MetadataRoute.Sitema
   { path: "/courses", changeFrequency: "daily", priority: 0.9 },
   { path: "/instructors", changeFrequency: "weekly", priority: 0.7 },
   { path: "/live-sessions", changeFrequency: "weekly", priority: 0.7 },
+  { path: "/blog", changeFrequency: "daily", priority: 0.7 },
   { path: "/about", changeFrequency: "monthly", priority: 0.5 },
   { path: "/changamka", changeFrequency: "monthly", priority: 0.7 },
   { path: "/help", changeFrequency: "monthly", priority: 0.4 },
@@ -35,6 +36,23 @@ async function fetchAllCourses(): Promise<Course[]> {
   return courses;
 }
 
+// Cursor-paginated, same walk-the-`next`-link approach as fetchAllCourses —
+// the public list endpoint already only returns published posts.
+async function fetchAllBlogPosts(): Promise<BlogPost[]> {
+  const posts: BlogPost[] = [];
+  let path: string | null = "/blog/posts/";
+
+  for (let guard = 0; path && guard < 100; guard++) {
+    const page: CursorPage<BlogPost> = await apiFetch<CursorPage<BlogPost>>(path, {
+      cache: "no-store",
+    });
+    posts.push(...page.results);
+    path = page.next ? page.next.replace(API_BASE_URL, "") : null;
+  }
+
+  return posts;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((route) => ({
     url: absoluteUrl(route.path),
@@ -44,9 +62,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // The backend being unreachable at build time shouldn't take down the
   // whole sitemap — fall back to the static routes only.
-  const [courses, instructors] = await Promise.all([
+  const [courses, instructors, blogPosts] = await Promise.all([
     fetchAllCourses().catch(() => []),
     listInstructors().catch(() => []),
+    fetchAllBlogPosts().catch(() => []),
   ]);
 
   const courseEntries: MetadataRoute.Sitemap = courses
@@ -64,5 +83,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticEntries, ...courseEntries, ...instructorEntries];
+  const blogPostEntries: MetadataRoute.Sitemap = blogPosts.map((post) => ({
+    url: absoluteUrl(`/blog/${post.slug}`),
+    lastModified: post.published_at ?? undefined,
+    changeFrequency: "monthly",
+    priority: 0.6,
+  }));
+
+  return [...staticEntries, ...courseEntries, ...instructorEntries, ...blogPostEntries];
 }
